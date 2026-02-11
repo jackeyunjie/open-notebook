@@ -70,18 +70,20 @@ class SkillInstanceResponse(BaseModel):
 
 class SkillExecutionResponse(BaseModel):
     """Skill execution response."""
+    model_config = {"arbitrary_types_allowed": True}
+    
     id: str
     skill_instance_id: str
     status: str
     trigger_type: str
-    triggered_by: Optional[str]
-    started_at: str
-    completed_at: Optional[str]
-    output: Optional[Dict[str, Any]]
-    error_message: Optional[str]
-    created_source_ids: List[str]
-    created_note_ids: List[str]
-    duration_seconds: Optional[float]
+    triggered_by: Optional[str] = None
+    started_at: Any = None
+    completed_at: Any = None
+    output: Optional[Dict[str, Any]] = None
+    error_message: Optional[str] = None
+    created_source_ids: List[str] = []
+    created_note_ids: List[str] = []
+    duration_seconds: Optional[float] = None
 
 
 class ExecuteSkillRequest(BaseModel):
