@@ -101,8 +101,14 @@ async def lifespan(app: FastAPI):
     # Initialize Skill Scheduler
     try:
         from open_notebook.skills.scheduler import skill_scheduler
-        await skill_scheduler.start()
+        from open_notebook.skills.runner import SkillRunner
+        runner = SkillRunner()
+        await skill_scheduler.start(runner)
         logger.success("Skill scheduler started successfully")
+        
+        # Load existing schedules from database
+        scheduled_count = await skill_scheduler.load_schedules_from_database()
+        logger.info(f"Loaded {scheduled_count} scheduled skills from database")
     except Exception as e:
         logger.error(f"Failed to start skill scheduler: {e}")
         # Don't fail startup, but log error
