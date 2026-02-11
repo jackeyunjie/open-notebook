@@ -54,6 +54,8 @@ class SkillInstanceUpdate(BaseModel):
 
 class SkillInstanceResponse(BaseModel):
     """Skill instance response."""
+    model_config = {"arbitrary_types_allowed": True}
+    
     id: str
     name: str
     skill_type: str
@@ -62,8 +64,8 @@ class SkillInstanceResponse(BaseModel):
     parameters: Dict[str, Any]
     schedule: Optional[str]
     target_notebook_id: Optional[str]
-    created: str
-    updated: str
+    created: Any = None
+    updated: Any = None
 
 
 class SkillExecutionResponse(BaseModel):

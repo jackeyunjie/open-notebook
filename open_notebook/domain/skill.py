@@ -43,8 +43,8 @@ class SkillInstance(ObjectModel):
     target_notebook_id: Optional[str] = None
     
     # Metadata
-    created: str = Field(default_factory=lambda: datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
-    updated: str = Field(default_factory=lambda: datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+    created: Optional[str] = None
+    updated: Optional[str] = None
     
     @classmethod
     async def get_by_skill_type(cls, skill_type: str) -> List["SkillInstance"]:
@@ -72,10 +72,7 @@ class SkillInstance(ObjectModel):
         )
         return [cls(**row) for row in results]
     
-    async def save(self) -> None:
-        """Save the skill instance."""
-        self.updated = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        await super().save()
+
 
 
 class SkillExecution(ObjectModel):
