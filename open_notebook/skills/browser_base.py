@@ -72,13 +72,14 @@ class BrowserUseSkill(Skill):
     }
     
     def __init__(self, config: SkillConfig):
-        super().__init__(config)
-        self.headless: bool = self.get_param("headless", True)
-        self.timeout: int = self.get_param("timeout", 30)
-        self.window_size: str = self.get_param("window_size", "1920,1080")
-        self.chrome_path: str = self.get_param("chrome_path", "/usr/bin/google-chrome")
+        # Initialize parameters BEFORE calling super().__init__
+        self.headless: bool = config.parameters.get("headless", True)
+        self.timeout: int = config.parameters.get("timeout", 30)
+        self.window_size: str = config.parameters.get("window_size", "1920,1080")
+        self.chrome_path: str = config.parameters.get("chrome_path", "/usr/bin/google-chrome")
         self._browser = None
         self._agent = None
+        super().__init__(config)
     
     def _validate_config(self) -> None:
         """Validate browser-use configuration."""

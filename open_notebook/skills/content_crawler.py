@@ -67,10 +67,12 @@ class RssCrawlerSkill(Skill):
     }
     
     def __init__(self, config: SkillConfig):
+        # Initialize parameters BEFORE calling super().__init__
+        # because _validate_config() is called from super().__init__
+        self.feed_urls: List[str] = config.parameters.get("feed_urls", [])
+        self.max_entries: int = config.parameters.get("max_entries", 10)
+        self.deduplicate: bool = config.parameters.get("deduplicate", True)
         super().__init__(config)
-        self.feed_urls: List[str] = self.get_param("feed_urls", [])
-        self.max_entries: int = self.get_param("max_entries", 10)
-        self.deduplicate: bool = self.get_param("deduplicate", True)
     
     def _validate_config(self) -> None:
         """Validate RSS crawler configuration."""

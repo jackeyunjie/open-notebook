@@ -73,11 +73,12 @@ class NoteSummarizerSkill(Skill):
     }
     
     def __init__(self, config: SkillConfig):
+        # Initialize parameters BEFORE calling super().__init__
+        self.source_note_ids: List[str] = config.parameters.get("source_note_ids", [])
+        self.summary_length: int = config.parameters.get("summary_length", 100)
+        self.summary_style: str = config.parameters.get("summary_style", "concise")
+        self.create_new_note: bool = config.parameters.get("create_new_note", True)
         super().__init__(config)
-        self.source_note_ids: List[str] = self.get_param("source_note_ids", [])
-        self.summary_length: int = self.get_param("summary_length", 100)
-        self.summary_style: str = self.get_param("summary_style", "concise")
-        self.create_new_note: bool = self.get_param("create_new_note", True)
     
     def _validate_config(self) -> None:
         """Validate summarizer configuration."""
@@ -270,11 +271,12 @@ class NoteTaggerSkill(Skill):
     }
     
     def __init__(self, config: SkillConfig):
+        # Initialize parameters BEFORE calling super().__init__
+        self.target_ids: List[str] = config.parameters.get("target_ids", [])
+        self.target_type: str = config.parameters.get("target_type", "note")
+        self.max_tags: int = config.parameters.get("max_tags", 5)
+        self.tag_categories: List[str] = config.parameters.get("tag_categories", [])
         super().__init__(config)
-        self.target_ids: List[str] = self.get_param("target_ids", [])
-        self.target_type: str = self.get_param("target_type", "note")
-        self.max_tags: int = self.get_param("max_tags", 5)
-        self.tag_categories: List[str] = self.get_param("tag_categories", [])
     
     async def _generate_tags(self, content: str, title: Optional[str] = None) -> List[str]:
         """Generate tags using AI."""

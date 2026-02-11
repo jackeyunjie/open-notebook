@@ -6,7 +6,7 @@ This module provides database models for:
 """
 
 from datetime import datetime
-from typing import Any, ClassVar, Dict, List, Optional
+from typing import Any, ClassVar, Dict, List, Optional, Union
 
 from pydantic import Field
 
@@ -26,6 +26,8 @@ class SkillInstance(ObjectModel):
         "schedule",
         "target_notebook_id",
         "description",
+        "created",
+        "updated",
     }
     
     name: str
@@ -42,9 +44,9 @@ class SkillInstance(ObjectModel):
     # Target notebook for this skill
     target_notebook_id: Optional[str] = None
     
-    # Metadata
-    created: Optional[str] = None
-    updated: Optional[str] = None
+    # Metadata - can be string or datetime from DB
+    created: Optional[Union[str, datetime]] = None
+    updated: Optional[Union[str, datetime]] = None
     
     @classmethod
     async def get_by_skill_type(cls, skill_type: str) -> List["SkillInstance"]:
@@ -86,6 +88,7 @@ class SkillExecution(ObjectModel):
         "error_message",
         "output",
         "completed_at",
+        "started_at",
     }
     
     # Link to skill instance
@@ -98,9 +101,9 @@ class SkillExecution(ObjectModel):
     trigger_type: str = "manual"  # manual, schedule, event
     triggered_by: Optional[str] = None  # user_id or system
     
-    # Timing
-    started_at: str = Field(default_factory=lambda: datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
-    completed_at: Optional[str] = None
+    # Timing - can be string or datetime from DB
+    started_at: Optional[Union[str, datetime]] = None
+    completed_at: Optional[Union[str, datetime]] = None
     
     # Results
     output: Optional[Dict[str, Any]] = None
