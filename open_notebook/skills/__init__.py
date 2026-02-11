@@ -11,6 +11,7 @@ from open_notebook.skills.runner import SkillRunner, get_skill_runner
 # Import all skills to ensure registration
 from open_notebook.skills.content_crawler import RssCrawlerSkill
 from open_notebook.skills.browser_base import BrowserUseSkill, BrowserCrawlerSkill
+from open_notebook.skills.browser_task import BrowserTaskSkill, BrowserMonitorSkill
 from open_notebook.skills.note_organizer import NoteSummarizerSkill, NoteTaggerSkill
 
 __all__ = [
@@ -26,6 +27,8 @@ __all__ = [
     "RssCrawlerSkill",
     "BrowserUseSkill",
     "BrowserCrawlerSkill",
+    "BrowserTaskSkill",
+    "BrowserMonitorSkill",
     "NoteSummarizerSkill",
     "NoteTaggerSkill",
 ]

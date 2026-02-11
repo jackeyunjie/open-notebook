@@ -106,9 +106,13 @@ class BrowserUseSkill(Skill):
             
             self._browser = Browser(config=browser_config)
             
-            # Initialize LLM (will use configured provider)
-            # This will be enhanced to support multiple providers
-            llm = ChatOpenAI(model="gpt-4o", temperature=0)
+            # Initialize LLM using project's AI provision system
+            from open_notebook.ai.provision import provision_langchain_model
+            llm = await provision_langchain_model(
+                model_name=None,  # Use default model
+                temperature=0,
+                purpose="browser_automation"
+            )
             
             self._agent = Agent(
                 task="",  # Will be set in execute
@@ -307,6 +311,5 @@ class BrowserCrawlerSkill(BrowserUseSkill):
         )
 
 
-# Register skills
-register_skill(BrowserUseSkill)
+# Register skills (only concrete implementations)
 register_skill(BrowserCrawlerSkill)
