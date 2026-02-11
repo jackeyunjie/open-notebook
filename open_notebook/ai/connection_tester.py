@@ -30,6 +30,7 @@ TEST_MODELS = {
     "voyage": ("voyage-3-lite", "embedding"),
     "elevenlabs": ("eleven_multilingual_v2", "text_to_speech"),
     "moonshot": ("moonshot-v1-8k", "language"),
+    "qwen": ("qwen-turbo", "language"),
     "zhipu": ("glm-4-flash", "language"),
     "ollama": (None, "language"),  # Dynamic - will use first available model
     # Complex providers with additional configuration

@@ -61,6 +61,9 @@ PROVIDER_CONFIG = {
     "moonshot": {
         "env_var": "MOONSHOT_API_KEY",
     },
+    "qwen": {
+        "env_var": "DASHSCOPE_API_KEY",
+    },
     "zhipu": {
         "env_var": "ZHIPU_API_KEY",
     },

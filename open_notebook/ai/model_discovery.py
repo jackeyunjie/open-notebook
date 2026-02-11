@@ -77,6 +77,35 @@ MOONSHOT_MODELS = {
     ],
 }
 
+# Qwen (Alibaba) Models - Static list
+QWEN_MODELS = {
+    "language": [
+        "qwen-plus",
+        "qwen-max",
+        "qwen-turbo",
+        "qwen-long",
+        "qwen-coder-plus",
+        "qwen-coder-turbo",
+        "qwen-math-plus",
+        "qwen-math-turbo",
+        "qwen-vl-max",
+        "qwen-vl-plus",
+        "qwen-audio-turbo",
+        "qwen2.5-72b-instruct",
+        "qwen2.5-32b-instruct",
+        "qwen2.5-14b-instruct",
+        "qwen2.5-7b-instruct",
+        "qwen2-72b-instruct",
+        "qwen2-57b-a14b-instruct",
+        "qwen2-7b-instruct",
+    ],
+    "embedding": [
+        "text-embedding-v1",
+        "text-embedding-v2",
+        "text-embedding-v3",
+    ],
+}
+
 # Zhipu AI (GLM) Models - Static list
 ZHIPU_MODELS = {
     "language": [
@@ -150,6 +179,27 @@ DEEPSEEK_MODEL_TYPES = {
     "language": ["deepseek-chat", "deepseek-reasoner", "deepseek-coder"],
 }
 
+QWEN_MODEL_TYPES = {
+    "language": [
+        "qwen",
+        "qwen-plus",
+        "qwen-max",
+        "qwen-turbo",
+        "qwen-long",
+        "qwen-coder",
+        "qwen-math",
+        "qwen-vl",
+        "qwen-audio",
+        "qwen2.5",
+        "qwen2",
+    ],
+    "embedding": [
+        "text-embedding-v1",
+        "text-embedding-v2",
+        "text-embedding-v3",
+    ],
+}
+
 XAI_MODEL_TYPES = {
     "language": ["grok"],
 }
@@ -187,6 +237,7 @@ def classify_model_type(model_name: str, provider: str) -> str:
         "mistral": MISTRAL_MODEL_TYPES,
         "groq": GROQ_MODEL_TYPES,
         "deepseek": DEEPSEEK_MODEL_TYPES,
+        "qwen": QWEN_MODEL_TYPES,
         "xai": XAI_MODEL_TYPES,
         "voyage": VOYAGE_MODEL_TYPES,
         "elevenlabs": ELEVENLABS_MODEL_TYPES,
@@ -482,6 +533,33 @@ async def discover_xai_models() -> List[DiscoveredModel]:
     return models
 
 
+async def discover_qwen_models() -> List[DiscoveredModel]:
+    """Return static list of Qwen (Alibaba) models."""
+    api_key = os.environ.get("DASHSCOPE_API_KEY")
+    if not api_key:
+        return []
+
+    # Qwen doesn't have a public model listing API, use static list
+    models = []
+    for model_name in QWEN_MODELS.get("language", []):
+        models.append(
+            DiscoveredModel(
+                name=model_name,
+                provider="qwen",
+                model_type="language",
+            )
+        )
+    for model_name in QWEN_MODELS.get("embedding", []):
+        models.append(
+            DiscoveredModel(
+                name=model_name,
+                provider="qwen",
+                model_type="embedding",
+            )
+        )
+    return models
+
+
 async def discover_moonshot_models() -> List[DiscoveredModel]:
     """Return static list of Moonshot (Kimi) models."""
     api_key = os.environ.get("MOONSHOT_API_KEY")
@@ -707,6 +785,7 @@ PROVIDER_DISCOVERY_FUNCTIONS = {
     "groq": discover_groq_models,
     "mistral": discover_mistral_models,
     "deepseek": discover_deepseek_models,
+    "qwen": discover_qwen_models,
     "xai": discover_xai_models,
     "openrouter": discover_openrouter_models,
     "voyage": discover_voyage_models,
