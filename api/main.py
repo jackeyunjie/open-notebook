@@ -34,7 +34,7 @@ from api.routers import (
     transformations,
 )
 from api.routers import commands as commands_router
-from api.routers import skills
+import api.routers.skills as skills
 from open_notebook.database.async_migrate import AsyncMigrationManager
 from open_notebook.utils.encryption import get_secret_from_env
 
