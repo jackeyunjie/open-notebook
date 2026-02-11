@@ -28,6 +28,14 @@ services:
       - SURREAL_PASSWORD=root
       - SURREAL_NAMESPACE=open_notebook
       - SURREAL_DATABASE=open_notebook
+
+      # AI Provider API Keys (auto-initialized on startup)
+      # DeepSeek - https://platform.deepseek.com
+      - DEEPSEEK_API_KEY=sk-2b3e736d87754216bc509c8595292931
+      # 阿里云百炼 (通义千问) - https://bailian.console.aliyun.com
+      - DASHSCOPE_API_KEY=sk-383049091d584eb3aad3e0de423a3119
+      # Moonshot (Kimi) - https://platform.moonshot.cn
+      - MOONSHOT_API_KEY=sk-VqWRgeDnKXIED8kijgueo6jscY9Y5uHTXLWXpOt0Bi6FURzy
     volumes:
       - ./notebook_data:/app/data
     depends_on:

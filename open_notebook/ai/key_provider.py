@@ -295,3 +295,155 @@ async def provision_all_keys() -> dict[str, bool]:
     results["openai_compatible"] = await provision_provider_keys("openai_compatible")
 
     return results
+
+
+# =============================================================================
+# Environment Variable to Database Initialization
+# =============================================================================
+# Auto-create ProviderConfig and Credential from environment variables
+# This enables code-based configuration without UI setup
+
+# Extended provider config with additional metadata for auto-initialization
+PROVIDER_INIT_CONFIG = {
+    "deepseek": {
+        "env_var": "DEEPSEEK_API_KEY",
+        "base_url_env": "DEEPSEEK_BASE_URL",
+        "default_base_url": "https://api.deepseek.com",
+        "display_name": "DeepSeek",
+    },
+    "qwen": {
+        "env_var": "DASHSCOPE_API_KEY",
+        "base_url_env": "DASHSCOPE_BASE_URL",
+        "default_base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+        "display_name": "通义千问",
+    },
+    "moonshot": {
+        "env_var": "MOONSHOT_API_KEY",
+        "base_url_env": "MOONSHOT_BASE_URL",
+        "default_base_url": "https://api.moonshot.cn/v1",
+        "display_name": "Moonshot",
+    },
+    "openai": {
+        "env_var": "OPENAI_API_KEY",
+        "base_url_env": "OPENAI_BASE_URL",
+        "default_base_url": None,
+        "display_name": "OpenAI",
+    },
+    "anthropic": {
+        "env_var": "ANTHROPIC_API_KEY",
+        "base_url_env": "ANTHROPIC_BASE_URL",
+        "default_base_url": None,
+        "display_name": "Anthropic",
+    },
+}
+
+
+async def init_provider_from_env(provider: str) -> bool:
+    """
+    Initialize a provider from environment variables.
+    Creates Credential and ProviderConfig records if they don't exist.
+
+    Args:
+        provider: Provider name (deepseek, qwen, moonshot, etc.)
+
+    Returns:
+        True if provider was initialized, False otherwise
+    """
+    from open_notebook.domain.credential import Credential
+    from open_notebook.domain.provider_config import ProviderConfig, ProviderCredential
+
+    provider_lower = provider.lower()
+    config = PROVIDER_INIT_CONFIG.get(provider_lower)
+    if not config:
+        logger.warning(f"No init config found for provider: {provider}")
+        return False
+
+    # Check if already configured in database (check both Credential and ProviderConfig)
+    existing_creds = await Credential.get_by_provider(provider_lower)
+    if existing_creds:
+        logger.debug(f"Provider {provider} already has credentials in DB, skipping env init")
+        return False
+
+    # Also check ProviderConfig
+    try:
+        provider_config = await ProviderConfig.get_instance()
+        if provider_config.get_default_config(provider_lower):
+            logger.debug(f"Provider {provider} already has ProviderConfig, skipping env init")
+            return False
+    except Exception:
+        # ProviderConfig might not exist yet, continue with initialization
+        pass
+
+    # Get API key from environment
+    api_key = os.environ.get(config["env_var"])
+    if not api_key:
+        logger.debug(f"No API key found in env var {config['env_var']} for {provider}")
+        return False
+
+    try:
+        # Determine base URL
+        base_url = os.environ.get(config["base_url_env"]) or config["default_base_url"]
+
+        # Create Credential record
+        credential = Credential(
+            name=f"{config['display_name']} Auto-Config",
+            provider=provider_lower,
+            api_key=api_key,
+            base_url=base_url,
+        )
+        await credential.save()
+        logger.info(f"Created Credential for {provider} from environment variable")
+
+        # Create ProviderConfig entry
+        try:
+            from pydantic import SecretStr
+            provider_config = await ProviderConfig.get_instance()
+
+            # Create new ProviderCredential
+            new_cred = ProviderCredential(
+                id=f"{provider_lower}_auto_{os.urandom(4).hex()}",
+                name=f"{config['display_name']} Auto-Config",
+                provider=provider_lower,
+                is_default=True,
+                api_key=SecretStr(api_key),
+                base_url=base_url,
+            )
+            provider_config.add_config(provider_lower, new_cred)
+            await provider_config.save()
+            logger.info(f"Created ProviderConfig for {provider}")
+        except Exception as e:
+            logger.warning(f"Could not create ProviderConfig for {provider}: {e}")
+            # Non-critical error, Credential is already created
+
+        return True
+
+    except Exception as e:
+        logger.error(f"Failed to initialize {provider} from environment: {e}")
+        return False
+
+
+async def init_all_providers_from_env() -> dict[str, bool]:
+    """
+    Initialize all supported providers from environment variables.
+    Call this at application startup to auto-configure providers.
+
+    Returns:
+        Dict mapping provider names to initialization success status
+    """
+    results: dict[str, bool] = {}
+
+    for provider in PROVIDER_INIT_CONFIG.keys():
+        try:
+            results[provider] = await init_provider_from_env(provider)
+        except Exception as e:
+            logger.error(f"Error initializing {provider}: {e}")
+            results[provider] = False
+
+    # Log summary
+    initialized = [p for p, success in results.items() if success]
+    if initialized:
+        logger.info(f"Auto-initialized providers from environment: {', '.join(initialized)}")
+    else:
+        logger.debug("No providers were auto-initialized from environment variables")
+
+    return results

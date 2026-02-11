@@ -87,6 +87,16 @@ async def lifespan(app: FastAPI):
         # Fail fast - don't start the API with an outdated database schema
         raise RuntimeError(f"Failed to run database migrations: {str(e)}") from e
 
+    # Initialize AI providers from environment variables
+    try:
+        from open_notebook.ai.key_provider import init_all_providers_from_env
+        init_results = await init_all_providers_from_env()
+        initialized = [p for p, success in init_results.items() if success]
+        if initialized:
+            logger.success(f"Auto-initialized AI providers: {', '.join(initialized)}")
+    except Exception as e:
+        logger.warning(f"Provider auto-initialization failed (non-critical): {e}")
+
     logger.success("API initialization completed successfully")
 
     # Yield control to the application
