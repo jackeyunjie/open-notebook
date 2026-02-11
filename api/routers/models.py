@@ -88,6 +88,8 @@ PROVIDER_PRIORITY = [
     "openai",
     "anthropic",
     "google",
+    "moonshot",
+    "zhipu",
     "mistral",
     "groq",
     "deepseek",
@@ -101,8 +103,10 @@ PROVIDER_PRIORITY = [
 # Model preference patterns (preferred models within each provider)
 MODEL_PREFERENCES = {
     "openai": ["gpt-4o", "gpt-4", "gpt-3.5-turbo"],
-    "anthropic": ["claude-3-5-sonnet", "claude-3-opus", "claude-3-sonnet"],
+    "anthropic": ["claude-4-5-opus", "claude-3-5-sonnet", "claude-3-opus", "claude-3-sonnet"],
     "google": ["gemini-2.0", "gemini-1.5-pro", "gemini-pro"],
+    "moonshot": ["kimi-k2-5", "kimi-k2", "moonshot-v1-128k"],
+    "zhipu": ["glm-5", "glm-4-plus", "glm-4"],
     "mistral": ["mistral-large", "mixtral"],
     "groq": ["llama-3.3", "llama-3.1", "mixtral"],
 }
@@ -378,6 +382,8 @@ async def get_provider_availability():
             "voyage": "VOYAGE_API_KEY",
             "elevenlabs": "ELEVENLABS_API_KEY",
             "ollama": "OLLAMA_API_BASE",
+            "moonshot": "MOONSHOT_API_KEY",
+            "zhipu": "ZHIPU_API_KEY",
         }
 
         provider_status = {}

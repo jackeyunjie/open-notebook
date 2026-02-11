@@ -61,6 +61,37 @@ ANTHROPIC_MODELS = {
         "claude-3-opus-20240229",
         "claude-3-sonnet-20240229",
         "claude-3-haiku-20240307",
+        "claude-4-5-opus-20251001",
+    ],
+}
+
+# Moonshot (Kimi) Models - Static list
+MOONSHOT_MODELS = {
+    "language": [
+        "kimi-k2-5",
+        "kimi-k2-5-long-context",
+        "kimi-k2",
+        "moonshot-v1-8k",
+        "moonshot-v1-32k",
+        "moonshot-v1-128k",
+    ],
+}
+
+# Zhipu AI (GLM) Models - Static list
+ZHIPU_MODELS = {
+    "language": [
+        "glm-5",
+        "glm-5-plus",
+        "glm-4",
+        "glm-4-plus",
+        "glm-4-air",
+        "glm-4-flash",
+        "glm-4v",
+        "glm-4v-plus",
+    ],
+    "embedding": [
+        "embedding-2",
+        "embedding-3",
     ],
 }
 
@@ -123,6 +154,15 @@ XAI_MODEL_TYPES = {
     "language": ["grok"],
 }
 
+MOONSHOT_MODEL_TYPES = {
+    "language": ["kimi", "moonshot"],
+}
+
+ZHIPU_MODEL_TYPES = {
+    "language": ["glm"],
+    "embedding": ["embedding"],
+}
+
 VOYAGE_MODEL_TYPES = {
     "embedding": ["voyage"],
 }
@@ -150,6 +190,8 @@ def classify_model_type(model_name: str, provider: str) -> str:
         "xai": XAI_MODEL_TYPES,
         "voyage": VOYAGE_MODEL_TYPES,
         "elevenlabs": ELEVENLABS_MODEL_TYPES,
+        "moonshot": MOONSHOT_MODEL_TYPES,
+        "zhipu": ZHIPU_MODEL_TYPES,
     }
 
     mapping = type_mappings.get(provider, {})
@@ -440,6 +482,76 @@ async def discover_xai_models() -> List[DiscoveredModel]:
     return models
 
 
+async def discover_moonshot_models() -> List[DiscoveredModel]:
+    """Return static list of Moonshot (Kimi) models."""
+    api_key = os.environ.get("MOONSHOT_API_KEY")
+    if not api_key:
+        return []
+
+    # Moonshot doesn't have a public model listing API, use static list
+    models = []
+    for model_name in MOONSHOT_MODELS.get("language", []):
+        models.append(
+            DiscoveredModel(
+                name=model_name,
+                provider="moonshot",
+                model_type="language",
+            )
+        )
+    return models
+
+
+async def discover_zhipu_models() -> List[DiscoveredModel]:
+    """Fetch available models from Zhipu AI (GLM) API."""
+    api_key = os.environ.get("ZHIPU_API_KEY")
+    if not api_key:
+        return []
+
+    models = []
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                "https://open.bigmodel.cn/api/paas/v4/models",
+                headers={"Authorization": f"Bearer {api_key}"},
+                timeout=30.0,
+            )
+            response.raise_for_status()
+            data = response.json()
+
+            for model in data.get("data", []):
+                model_id = model.get("id", "")
+                if model_id:
+                    model_type = classify_model_type(model_id, "zhipu")
+                    models.append(
+                        DiscoveredModel(
+                            name=model_id,
+                            provider="zhipu",
+                            model_type=model_type,
+                        )
+                    )
+    except Exception as e:
+        logger.warning(f"Failed to discover Zhipu models: {e}")
+        # Fallback to static list if API fails
+        for model_name in ZHIPU_MODELS.get("language", []):
+            models.append(
+                DiscoveredModel(
+                    name=model_name,
+                    provider="zhipu",
+                    model_type="language",
+                )
+            )
+        for model_name in ZHIPU_MODELS.get("embedding", []):
+            models.append(
+                DiscoveredModel(
+                    name=model_name,
+                    provider="zhipu",
+                    model_type="embedding",
+                )
+            )
+
+    return models
+
+
 async def discover_openrouter_models() -> List[DiscoveredModel]:
     """Fetch available models from OpenRouter API."""
     api_key = os.environ.get("OPENROUTER_API_KEY")
@@ -600,6 +712,8 @@ PROVIDER_DISCOVERY_FUNCTIONS = {
     "voyage": discover_voyage_models,
     "elevenlabs": discover_elevenlabs_models,
     "openai_compatible": discover_openai_compatible_models,
+    "moonshot": discover_moonshot_models,
+    "zhipu": discover_zhipu_models,
     "azure": None,  # Azure requires credential-based discovery (different auth)
     "vertex": None,  # Vertex requires credential-based discovery (service account)
 }

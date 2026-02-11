@@ -58,6 +58,12 @@ PROVIDER_CONFIG = {
     "elevenlabs": {
         "env_var": "ELEVENLABS_API_KEY",
     },
+    "moonshot": {
+        "env_var": "MOONSHOT_API_KEY",
+    },
+    "zhipu": {
+        "env_var": "ZHIPU_API_KEY",
+    },
     # URL-based providers
     "ollama": {
         "env_var": "OLLAMA_API_BASE",
@@ -322,6 +328,12 @@ PROVIDER_INIT_CONFIG = {
         "base_url_env": "MOONSHOT_BASE_URL",
         "default_base_url": "https://api.moonshot.cn/v1",
         "display_name": "Moonshot",
+    },
+    "zhipu": {
+        "env_var": "ZHIPU_API_KEY",
+        "base_url_env": "ZHIPU_BASE_URL",
+        "default_base_url": "https://open.bigmodel.cn/api/paas/v4",
+        "display_name": "智谱AI",
     },
     "openai": {
         "env_var": "OPENAI_API_KEY",

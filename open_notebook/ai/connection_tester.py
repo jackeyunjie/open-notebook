@@ -29,6 +29,8 @@ TEST_MODELS = {
     "openrouter": ("openai/gpt-3.5-turbo", "language"),
     "voyage": ("voyage-3-lite", "embedding"),
     "elevenlabs": ("eleven_multilingual_v2", "text_to_speech"),
+    "moonshot": ("moonshot-v1-8k", "language"),
+    "zhipu": ("glm-4-flash", "language"),
     "ollama": (None, "language"),  # Dynamic - will use first available model
     # Complex providers with additional configuration
     "vertex": ("gemini-2.0-flash", "language"),  # Uses Google Vertex AI
