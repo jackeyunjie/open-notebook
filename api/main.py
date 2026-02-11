@@ -98,12 +98,28 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"Provider auto-initialization failed (non-critical): {e}")
 
+    # Initialize Skill Scheduler
+    try:
+        from open_notebook.skills.scheduler import skill_scheduler
+        await skill_scheduler.start()
+        logger.success("Skill scheduler started successfully")
+    except Exception as e:
+        logger.error(f"Failed to start skill scheduler: {e}")
+        # Don't fail startup, but log error
+
     logger.success("API initialization completed successfully")
 
     # Yield control to the application
     yield
 
-    # Shutdown: cleanup if needed
+    # Shutdown: cleanup
+    try:
+        from open_notebook.skills.scheduler import skill_scheduler
+        await skill_scheduler.shutdown()
+        logger.info("Skill scheduler shut down")
+    except Exception as e:
+        logger.error(f"Error shutting down skill scheduler: {e}")
+
     logger.info("API shutdown complete")
 
 

@@ -39,6 +39,7 @@ services:
     volumes:
       - ./notebook_data:/app/data
       # Mount local code changes for development
+      - ./pyproject.toml:/app/pyproject.toml
       - ./open_notebook/ai/key_provider.py:/app/open_notebook/ai/key_provider.py
       - ./open_notebook/domain/skill.py:/app/open_notebook/domain/skill.py
       - ./open_notebook/skills:/app/open_notebook/skills

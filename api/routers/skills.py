@@ -169,7 +169,7 @@ async def create_skill_instance(request: SkillInstanceCreate):
             detail=f"Unknown skill type: {request.skill_type}. "
                    f"Available: {[s['skill_type'] for s in SkillRegistry.list_skills()]}"
         )
-    
+
     instance = SkillInstance(
         name=request.name,
         skill_type=request.skill_type,
@@ -180,7 +180,12 @@ async def create_skill_instance(request: SkillInstanceCreate):
         target_notebook_id=request.target_notebook_id,
     )
     await instance.save()
-    
+
+    # Schedule if enabled and has schedule
+    if instance.enabled and instance.schedule:
+        from open_notebook.skills.scheduler import skill_scheduler
+        await skill_scheduler.schedule_skill(instance.id, instance.schedule)
+
     return SkillInstanceResponse(
         id=instance.id,
         name=instance.name,
@@ -224,7 +229,11 @@ async def update_skill_instance(instance_id: str, request: SkillInstanceUpdate):
         instance = await SkillInstance.get(instance_id)
     except Exception:
         raise HTTPException(status_code=404, detail="Skill instance not found")
-    
+
+    # Track if schedule or enabled status changed
+    old_schedule = instance.schedule
+    old_enabled = instance.enabled
+
     # Update fields
     if request.name is not None:
         instance.name = request.name
@@ -238,9 +247,23 @@ async def update_skill_instance(instance_id: str, request: SkillInstanceUpdate):
         instance.schedule = request.schedule
     if request.target_notebook_id is not None:
         instance.target_notebook_id = request.target_notebook_id
-    
+
     await instance.save()
-    
+
+    # Update scheduler if schedule or enabled status changed
+    schedule_changed = request.schedule is not None and request.schedule != old_schedule
+    enabled_changed = request.enabled is not None and request.enabled != old_enabled
+
+    if schedule_changed or enabled_changed:
+        from open_notebook.skills.scheduler import skill_scheduler
+
+        if instance.enabled and instance.schedule:
+            # Schedule or reschedule
+            await skill_scheduler.schedule_skill(instance.id, instance.schedule)
+        else:
+            # Unschedule if disabled or schedule removed
+            await skill_scheduler.unschedule_skill(instance.id)
+
     return SkillInstanceResponse(
         id=instance.id,
         name=instance.name,
@@ -260,6 +283,11 @@ async def delete_skill_instance(instance_id: str):
     """Delete a skill instance."""
     try:
         instance = await SkillInstance.get(instance_id)
+
+        # Remove from scheduler if scheduled
+        from open_notebook.skills.scheduler import skill_scheduler
+        await skill_scheduler.unschedule_skill(instance_id)
+
         await instance.delete()
         return {"message": "Skill instance deleted"}
     except Exception:
@@ -392,11 +420,87 @@ async def cancel_execution(execution_id: str):
     """Cancel a running skill execution."""
     runner = get_skill_runner()
     success = await runner.cancel_execution(execution_id)
-    
+
     if not success:
         raise HTTPException(
             status_code=400,
             detail="Execution not found or already completed"
         )
-    
+
     return {"message": "Execution cancelled"}
+
+
+# =============================================================================
+# Scheduler Management
+# =============================================================================
+
+class SchedulerStatusResponse(BaseModel):
+    """Scheduler status response."""
+    running: bool
+    scheduled_jobs: int
+    jobs: List[Dict[str, Any]] = []
+
+
+class SkillScheduleResponse(BaseModel):
+    """Skill schedule response."""
+    skill_instance_id: str
+    schedule: Optional[str]
+    next_run_time: Optional[Any]
+    enabled: bool
+
+
+@router.get("/skills/scheduler/status", response_model=SchedulerStatusResponse)
+async def get_scheduler_status():
+    """Get the scheduler status and list of scheduled jobs."""
+    from open_notebook.skills.scheduler import skill_scheduler
+
+    jobs = skill_scheduler.get_all_scheduled_jobs()
+
+    return SchedulerStatusResponse(
+        running=skill_scheduler._running,
+        scheduled_jobs=len(jobs),
+        jobs=jobs,
+    )
+
+
+@router.get("/skills/instances/{instance_id}/schedule", response_model=SkillScheduleResponse)
+async def get_skill_schedule(instance_id: str):
+    """Get schedule information for a skill instance."""
+    try:
+        instance = await SkillInstance.get(instance_id)
+    except Exception:
+        raise HTTPException(status_code=404, detail="Skill instance not found")
+
+    from open_notebook.skills.scheduler import skill_scheduler
+    next_run = await skill_scheduler.get_next_run_time(instance_id)
+
+    return SkillScheduleResponse(
+        skill_instance_id=instance_id,
+        schedule=instance.schedule,
+        next_run_time=next_run,
+        enabled=instance.enabled,
+    )
+
+
+@router.post("/skills/instances/{instance_id}/reschedule")
+async def reschedule_skill(instance_id: str, schedule: str):
+    """Manually reschedule a skill instance."""
+    try:
+        instance = await SkillInstance.get(instance_id)
+    except Exception:
+        raise HTTPException(status_code=404, detail="Skill instance not found")
+
+    if not instance.enabled:
+        raise HTTPException(status_code=400, detail="Skill instance is disabled")
+
+    from open_notebook.skills.scheduler import skill_scheduler
+    success = await skill_scheduler.schedule_skill(instance_id, schedule)
+
+    if not success:
+        raise HTTPException(status_code=400, detail="Failed to schedule skill")
+
+    # Update instance with new schedule
+    instance.schedule = schedule
+    await instance.save()
+
+    return {"message": "Skill rescheduled successfully", "schedule": schedule}
