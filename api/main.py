@@ -28,13 +28,13 @@ from api.routers import (
     podcasts,
     search,
     settings,
-    skills,
     source_chat,
     sources,
     speaker_profiles,
     transformations,
 )
 from api.routers import commands as commands_router
+from api.routers import skills
 from open_notebook.database.async_migrate import AsyncMigrationManager
 from open_notebook.utils.encryption import get_secret_from_env
 
