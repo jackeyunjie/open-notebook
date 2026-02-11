@@ -12,7 +12,7 @@ from urllib.parse import urlparse
 import httpx
 from loguru import logger
 
-from open_notebook.domain.notebook import Source
+from open_notebook.domain.notebook import Asset, Source
 from open_notebook.skills.base import Skill, SkillConfig, SkillContext, SkillResult, SkillStatus
 from open_notebook.skills.registry import register_skill
 
@@ -95,7 +95,9 @@ class RssCrawlerSkill(Skill):
         try:
             existing = await Source.get(source_id)
             return existing is not None
-        except Exception:
+        except Exception as e:
+            # NotFoundError or any other exception means source doesn't exist
+            logger.debug(f"Source {source_id} not found: {e}")
             return False
     
     async def _parse_feed(self, feed_url: str) -> List[Dict[str, Any]]:
@@ -237,7 +239,7 @@ class RssCrawlerSkill(Skill):
                 id=source_id,
                 title=title,
                 full_text=full_text,
-                asset={"url": url},
+                asset=Asset(url=url),
                 topics=["rss", "auto-import"]
             )
             await source.save()
