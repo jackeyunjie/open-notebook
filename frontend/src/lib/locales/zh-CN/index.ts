@@ -225,6 +225,7 @@ export const zhCN = {
     transformation: "转换",
     settings: "设置",
     advanced: "高级",
+    skills: "技能",
     nav: "导航",
     language: "切换语言",
     theme: "主题",

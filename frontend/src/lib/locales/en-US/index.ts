@@ -223,6 +223,7 @@ export const enUS = {
     transformation: "Transformation",
     settings: "Settings",
     advanced: "Advanced",
+    skills: "Skills",
     nav: "Navigation",
     language: "Toggle language",
     theme: "Theme",
