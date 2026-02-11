@@ -17,15 +17,22 @@
 - [docs/5-CONFIGURATION/local-stt.md](file://docs/5-CONFIGURATION/local-stt.md)
 - [.env.example](file://.env.example)
 - [scripts/wait-for-api.sh](file://scripts/wait-for-api.sh)
+- [scripts/install-deps.sh](file://scripts/install-deps.sh)
 - [Dockerfile](file://Dockerfile)
 - [Dockerfile.single](file://Dockerfile.single)
 - [open_notebook/ai/key_provider.py](file://open_notebook/ai/key_provider.py)
+- [open_notebook/skills/base.py](file://open_notebook/skills/base.py)
+- [open_notebook/skills/scheduler.py](file://open_notebook/skills/scheduler.py)
+- [open_notebook/domain/skill.py](file://open_notebook/domain/skill.py)
+- [pyproject.toml](file://pyproject.toml)
 </cite>
 
 ## 更新摘要
 **变更内容**
-- 新增docker-compose.dev.yml开发环境配置详解
-- 更新docker-compose.yml生产环境增强，包含完整的API密钥环境变量支持
+- 新增docker-compose.dev.yml开发环境配置详解，支持热重载和源代码挂载
+- 更新docker-compose.yml生产环境增强，包含完整的API密钥环境变量支持和依赖安装脚本
+- 新增依赖安装脚本install-deps.sh，自动安装Skill系统所需的Python包
+- 增强开发工作流程支持，包括源代码挂载和开发卷配置
 - 补充API密钥提供者机制和凭证系统的详细说明
 - 增强环境变量配置和安全最佳实践指导
 
@@ -42,13 +49,14 @@
 10. [环境变量与配置](#环境变量与配置)
 11. [不同环境的Compose配置差异](#不同环境的compose配置差异)
 12. [API密钥与凭证系统](#api密钥与凭证系统)
-13. [故障排除指南](#故障排除指南)
-14. [结论](#结论)
+13. [开发工作流程增强](#开发工作流程增强)
+14. [故障排除指南](#故障排除指南)
+15. [结论](#结论)
 
 ## 简介
 本文件面向使用 Docker Compose 部署 Open Notebook 的用户，系统化说明多容器架构的优势与适用场景（数据库、API 服务、前端应用、本地 AI 服务的分离），并基于仓库中的示例配置文件，给出开发环境、完整本地部署（含 Ollama 与本地 TTS/STT）、以及单容器替代方案的对比与实践建议。文档还涵盖环境变量、卷挂载、网络设置、服务依赖关系、启动顺序、健康检查、故障排除与扩展定制方法。
 
-**更新** 新增对docker-compose.dev.yml开发环境配置的详细说明，以及docker-compose.yml生产环境中的完整API密钥环境变量支持机制。
+**更新** 新增对docker-compose.dev.yml开发环境配置的详细说明，以及docker-compose.yml生产环境中的完整API密钥环境变量支持机制和依赖安装脚本。
 
 ## 项目结构
 Open Notebook 提供了多种 Docker Compose 示例，覆盖从最小化部署到完全本地化的隐私优先方案。核心目录与文件如下：
@@ -56,8 +64,9 @@ Open Notebook 提供了多种 Docker Compose 示例，覆盖从最小化部署�
 - 开发环境配置：docker-compose.dev.yml提供热重载和开发便利
 - examples 目录：提供开发、Ollama、完整本地、单容器等示例
 - 文档目录：包含安装、配置、环境变量参考与本地 AI 设置指南
-- 脚本与镜像构建文件：包含等待 API 健康脚本与多阶段 Dockerfile
+- 脚本与镜像构建文件：包含等待 API 健康脚本、依赖安装脚本与多阶段 Dockerfile
 - API密钥提供者：支持数据库优先的凭证系统和环境变量回退
+- 技能系统：支持自动化任务调度和浏览器自动化功能
 
 ```mermaid
 graph TB
@@ -65,6 +74,10 @@ subgraph "根目录"
 R1["docker-compose.yml"]
 R2["docker-compose.dev.yml"]
 R3[".env.example"]
+end
+subgraph "scripts"
+S1["wait-for-api.sh"]
+S2["install-deps.sh"]
 end
 subgraph "examples"
 E1["docker-compose-dev.yml"]
@@ -81,9 +94,6 @@ D5["5-CONFIGURATION/ollama.md"]
 D6["5-CONFIGURATION/local-tts.md"]
 D7["5-CONFIGURATION/local-stt.md"]
 end
-subgraph "scripts"
-S1["wait-for-api.sh"]
-end
 subgraph "Dockerfile"
 F1["Dockerfile"]
 F2["Dockerfile.single"]
@@ -92,7 +102,12 @@ subgraph "API密钥系统"
 K1["key_provider.py"]
 K2["凭证管理"]
 end
-R1 --- E1
+subgraph "技能系统"
+SK1["skills/base.py"]
+SK2["skills/scheduler.py"]
+SK3["domain/skill.py"]
+end
+R1 --- S2
 R2 --- K1
 R1 --- E2
 R1 --- E3
@@ -109,10 +124,12 @@ S1 --- F1
 F1 --- R1
 F2 --- E4
 K1 --- K2
+SK1 --- SK2
+SK2 --- SK3
 ```
 
 **图表来源**
-- [docker-compose.yml](file://docker-compose.yml#L1-L48)
+- [docker-compose.yml](file://docker-compose.yml#L1-L57)
 - [docker-compose.dev.yml](file://docker-compose.dev.yml#L1-L34)
 - [examples/docker-compose-dev.yml](file://examples/docker-compose-dev.yml#L1-L29)
 - [examples/docker-compose-ollama.yml](file://examples/docker-compose-ollama.yml#L1-L64)
@@ -126,12 +143,16 @@ K1 --- K2
 - [docs/5-CONFIGURATION/local-tts.md](file://docs/5-CONFIGURATION/local-tts.md#L1-L345)
 - [docs/5-CONFIGURATION/local-stt.md](file://docs/5-CONFIGURATION/local-stt.md#L1-L366)
 - [scripts/wait-for-api.sh](file://scripts/wait-for-api.sh#L1-L23)
-- [Dockerfile](file://Dockerfile#L1-L114)
+- [scripts/install-deps.sh](file://scripts/install-deps.sh#L1-L20)
+- [Dockerfile](file://Dockerfile#L1-L159)
 - [Dockerfile.single](file://Dockerfile.single#L1-L81)
 - [open_notebook/ai/key_provider.py](file://open_notebook/ai/key_provider.py#L1-L450)
+- [open_notebook/skills/base.py](file://open_notebook/skills/base.py#L1-L183)
+- [open_notebook/skills/scheduler.py](file://open_notebook/skills/scheduler.py#L1-L65)
+- [open_notebook/domain/skill.py](file://open_notebook/domain/skill.py#L1-L162)
 
 **章节来源**
-- [docker-compose.yml](file://docker-compose.yml#L1-L48)
+- [docker-compose.yml](file://docker-compose.yml#L1-L57)
 - [docker-compose.dev.yml](file://docker-compose.dev.yml#L1-L34)
 - [examples/docker-compose-dev.yml](file://examples/docker-compose-dev.yml#L1-L29)
 - [examples/docker-compose-ollama.yml](file://examples/docker-compose-ollama.yml#L1-L64)
@@ -149,19 +170,21 @@ K1 --- K2
   - 使用 Supervisor 管理多个进程，内置等待 API 健康脚本
   - 支持通过环境变量配置数据库连接、加密密钥、外部 API URL 等
   - **新增**：完整的API密钥环境变量支持，包括DeepSeek、阿里云百炼、Moonshot等提供商
+  - **新增**：依赖安装脚本自动安装Skill系统所需的Python包
 - 可选服务
   - Ollama：本地大语言模型与嵌入模型推理
   - Speaches：本地 TTS/STT 服务器（OpenAI 兼容）
 
-**更新** 生产环境配置现在包含完整的API密钥环境变量支持，涵盖多个主流AI提供商。
+**更新** 生产环境配置现在包含完整的API密钥环境变量支持和依赖安装脚本，开发环境提供热重载和源代码挂载。
 
 **章节来源**
-- [docker-compose.yml](file://docker-compose.yml#L1-L48)
+- [docker-compose.yml](file://docker-compose.yml#L1-L57)
 - [docker-compose.dev.yml](file://docker-compose.dev.yml#L1-L34)
 - [examples/docker-compose-ollama.yml](file://examples/docker-compose-ollama.yml#L1-L64)
 - [examples/docker-compose-full-local.yml](file://examples/docker-compose-full-local.yml#L1-L198)
-- [Dockerfile](file://Dockerfile#L1-L114)
+- [Dockerfile](file://Dockerfile#L1-L159)
 - [scripts/wait-for-api.sh](file://scripts/wait-for-api.sh#L1-L23)
+- [scripts/install-deps.sh](file://scripts/install-deps.sh#L1-L20)
 - [open_notebook/ai/key_provider.py](file://open_notebook/ai/key_provider.py#L29-L65)
 
 ## 架构总览
@@ -171,7 +194,7 @@ K1 --- K2
 graph TB
 subgraph "基础部署数据库与应用分离"
 SDB1["SurrealDB<br/>端口:8000"]
-APP1["Open Notebook<br/>端口:8502,5055<br/>API密钥: 环境变量"]
+APP1["Open Notebook<br/>端口:8502,5055<br/>API密钥: 环境变量<br/>依赖安装: install-deps.sh"]
 APP1 --- SDB1
 end
 subgraph "仅本地 AIOllama"
@@ -193,7 +216,7 @@ end
 ```
 
 **图表来源**
-- [docker-compose.yml](file://docker-compose.yml#L1-L48)
+- [docker-compose.yml](file://docker-compose.yml#L1-L57)
 - [docker-compose.dev.yml](file://docker-compose.dev.yml#L1-L34)
 - [examples/docker-compose-ollama.yml](file://examples/docker-compose-ollama.yml#L1-L64)
 - [examples/docker-compose-full-local.yml](file://examples/docker-compose-full-local.yml#L1-L198)
@@ -211,7 +234,7 @@ end
   - 应用服务需先于数据库完成初始化，可通过 depends_on 或启动脚本等待
 
 **章节来源**
-- [docker-compose.yml](file://docker-compose.yml#L1-L48)
+- [docker-compose.yml](file://docker-compose.yml#L1-L57)
 - [docker-compose.dev.yml](file://docker-compose.dev.yml#L1-L34)
 - [examples/docker-compose-dev.yml](file://examples/docker-compose-dev.yml#L1-L29)
 - [docs/5-CONFIGURATION/database.md](file://docs/5-CONFIGURATION/database.md#L1-L51)
@@ -220,6 +243,7 @@ end
 - 容器内进程管理
   - 使用 Supervisor 管理多个进程，确保前端与 API 同时运行
   - 内置等待 API 健康脚本，避免前端过早连接导致的连接错误
+  - **新增**：启动时自动执行依赖安装脚本
 - 网络绑定
   - 绑定到 0.0.0.0，便于反向代理与容器间通信
 - 端口暴露
@@ -228,6 +252,7 @@ end
 - 卷挂载
   - 应用数据目录映射到宿主机，便于备份与持久化
   - **开发环境**：挂载源代码目录以支持热重载
+  - **生产环境**：挂载技能系统相关文件以支持动态开发
 - 依赖关系
   - 依赖数据库服务；在完整本地部署中还依赖 Ollama 与 Speaches
 
@@ -239,9 +264,13 @@ participant S as "Supervisor"
 participant A as "API(5055)"
 participant W as "等待脚本"
 participant D as "SurrealDB"
+participant I as "依赖安装脚本"
 U->>F : 访问 UI
 F->>S : 启动进程
-S->>W : 执行等待脚本
+S->>I : 执行依赖安装
+I->>I : 检查APScheduler和browser-use
+I->>A : 安装缺失的Python包
+A->>W : 执行等待脚本
 W->>A : 轮询 /health
 A->>D : 初始化数据库连接
 A-->>W : 返回健康状态
@@ -252,12 +281,14 @@ U-->>F : 正常交互
 
 **图表来源**
 - [scripts/wait-for-api.sh](file://scripts/wait-for-api.sh#L1-L23)
-- [Dockerfile](file://Dockerfile#L1-L114)
+- [scripts/install-deps.sh](file://scripts/install-deps.sh#L1-L20)
+- [Dockerfile](file://Dockerfile#L1-L159)
 
 **章节来源**
-- [Dockerfile](file://Dockerfile#L1-L114)
+- [Dockerfile](file://Dockerfile#L1-L159)
 - [scripts/wait-for-api.sh](file://scripts/wait-for-api.sh#L1-L23)
-- [docker-compose.yml](file://docker-compose.yml#L1-L48)
+- [scripts/install-deps.sh](file://scripts/install-deps.sh#L1-L20)
+- [docker-compose.yml](file://docker-compose.yml#L1-L57)
 - [docker-compose.dev.yml](file://docker-compose.dev.yml#L1-L34)
 
 ### 组件三：可选服务（Ollama）
@@ -297,6 +328,7 @@ U-->>F : 正常交互
 - 启动顺序
   - 建议按数据库 → 可选 AI 服务 → 应用的顺序启动
   - 应用内部通过等待脚本确保 API 就绪后再启动前端
+  - **新增**：应用启动时自动执行依赖安装脚本
 - 网络与端口
   - 数据库：8000
   - API：5055
@@ -312,13 +344,13 @@ SPE["Speaches:8969"] --> APP
 ```
 
 **图表来源**
-- [docker-compose.yml](file://docker-compose.yml#L1-L48)
+- [docker-compose.yml](file://docker-compose.yml#L1-L57)
 - [docker-compose.dev.yml](file://docker-compose.dev.yml#L1-L34)
 - [examples/docker-compose-ollama.yml](file://examples/docker-compose-ollama.yml#L1-L64)
 - [examples/docker-compose-full-local.yml](file://examples/docker-compose-full-local.yml#L1-L198)
 
 **章节来源**
-- [docker-compose.yml](file://docker-compose.yml#L1-L48)
+- [docker-compose.yml](file://docker-compose.yml#L1-L57)
 - [docker-compose.dev.yml](file://docker-compose.dev.yml#L1-L34)
 - [examples/docker-compose-ollama.yml](file://examples/docker-compose-ollama.yml#L1-L64)
 - [examples/docker-compose-full-local.yml](file://examples/docker-compose-full-local.yml#L1-L198)
@@ -354,6 +386,7 @@ SPE["Speaches:8969"] --> APP
   1) 使用 docker-compose.dev.yml
   2) 自动挂载源代码目录支持热重载
   3) 使用本地构建的镜像进行开发调试
+  4) **新增**：支持实时代码修改和自动重启
 
 **更新** 新增开发环境部署步骤，强调热重载和本地开发便利性。
 
@@ -390,12 +423,15 @@ SPE["Speaches:8969"] --> APP
   - 阿里云百炼：DASHSCOPE_API_KEY
   - Moonshot：MOONSHOT_API_KEY
   - 其他提供商：OPENAI_API_KEY、ANTHROPIC_API_KEY、GOOGLE_API_KEY等
+- **新增**：技能系统环境变量
+  - OPEN_NOTEBOOK_SKILL_ENABLED：启用技能系统
+  - OPEN_NOTEBOOK_SKILL_SCHEDULE：技能调度配置
 - 配置来源
   - docker-compose 环境变量
   - .env.example 提供模板
   - 文档中的环境变量参考表
 
-**更新** 生产环境配置现在包含完整的API密钥环境变量支持，涵盖多个主流AI提供商。
+**更新** 生产环境配置现在包含完整的API密钥环境变量支持和技能系统配置，开发环境提供热重载和源代码挂载。
 
 **章节来源**
 - [.env.example](file://.env.example#L1-L60)
@@ -406,10 +442,11 @@ SPE["Speaches:8969"] --> APP
 ## 不同环境的Compose配置差异
 - 基础部署（推荐）
   - 分离数据库与应用，便于扩展与维护
-  - **生产环境**：包含完整的API密钥环境变量支持
+  - **生产环境**：包含完整的API密钥环境变量支持和依赖安装脚本
 - 开发环境
   - 使用本地构建的镜像，加载 .env 文件，便于调试
   - **新增**：docker-compose.dev.yml提供热重载和源代码挂载
+  - **新增**：支持实时代码修改和自动重启
 - Ollama 本地模型
   - 新增 Ollama 服务，应用通过服务名访问
 - 完整本地部署（隐私优先）
@@ -420,7 +457,7 @@ SPE["Speaches:8969"] --> APP
 **更新** 新增docker-compose.dev.yml开发环境配置的详细说明。
 
 **章节来源**
-- [docker-compose.yml](file://docker-compose.yml#L1-L48)
+- [docker-compose.yml](file://docker-compose.yml#L1-L57)
 - [docker-compose.dev.yml](file://docker-compose.dev.yml#L1-L34)
 - [examples/docker-compose-dev.yml](file://examples/docker-compose-dev.yml#L1-L29)
 - [examples/docker-compose-ollama.yml](file://examples/docker-compose-ollama.yml#L1-L64)
@@ -494,6 +531,67 @@ end
 - [docs/5-CONFIGURATION/environment-reference.md](file://docs/5-CONFIGURATION/environment-reference.md#L232-L275)
 - [docker-compose.yml](file://docker-compose.yml#L32-L38)
 
+## 开发工作流程增强
+
+### 依赖安装脚本
+Open Notebook 提供了智能的依赖安装机制，确保开发环境的Python包完整性：
+
+#### install-deps.sh 功能特性
+- **自动检测**：启动时检查必需的Python包是否已安装
+- **条件安装**：仅安装缺失的包，避免重复安装
+- **技能系统支持**：自动安装APScheduler和browser-use包
+- **版本兼容**：确保安装的包版本符合项目要求
+
+#### 支持的技能系统依赖
+- **APScheduler**：异步任务调度框架，支持cron表达式
+- **browser-use**：AI驱动的浏览器自动化工具
+- **tzlocal**：时区本地化支持
+
+#### 依赖安装流程
+```mermaid
+flowchart TD
+A[容器启动] --> B{检查APScheduler}
+C[安装APScheduler] --> D{检查browser-use}
+E[安装browser-use] --> F[依赖检查完成]
+B --> G{已安装}
+G --> D
+C --> D
+D --> H{已安装}
+H --> F
+```
+
+**图表来源**
+- [scripts/install-deps.sh](file://scripts/install-deps.sh#L1-L20)
+- [pyproject.toml](file://pyproject.toml#L43-L44)
+
+### 开发卷挂载配置
+开发环境提供了全面的源代码挂载支持：
+
+#### docker-compose.dev.yml 卷配置
+- **notebook_data**：应用数据持久化
+- **open_notebook**：源代码挂载，支持热重载
+- **技能系统文件**：动态挂载技能相关文件
+
+#### 生产环境卷配置
+- **notebook_data**：应用数据持久化
+- **技能系统文件**：挂载技能相关文件以支持动态开发
+- **依赖安装脚本**：挂载安装脚本以支持动态依赖管理
+
+#### 挂载文件列表
+生产环境挂载的关键文件：
+- `./open_notebook/skills`：技能系统源代码
+- `./open_notebook/ai/key_provider.py`：API密钥提供者
+- `./open_notebook/domain/skill.py`：技能领域模型
+- `./api/main.py`：API主入口
+- `./api/routers/skills.py`：技能路由
+- `./scripts/install-deps.sh`：依赖安装脚本
+
+**章节来源**
+- [scripts/install-deps.sh](file://scripts/install-deps.sh#L1-L20)
+- [docker-compose.dev.yml](file://docker-compose.dev.yml#L28-L30)
+- [docker-compose.yml](file://docker-compose.yml#L42-L47)
+- [pyproject.toml](file://pyproject.toml#L43-L44)
+
 ## 故障排除指南
 - 无法连接 API
   - 检查服务是否运行、日志与等待脚本是否成功
@@ -515,8 +613,16 @@ end
   - 确认源代码挂载是否正确
   - 检查热重载功能是否启用
   - 验证本地构建的镜像版本
+- **依赖安装问题**
+  - 检查install-deps.sh脚本执行日志
+  - 确认网络连接和PyPI访问权限
+  - 验证Python虚拟环境路径
+- **技能系统问题**
+  - 检查APScheduler是否正确安装
+  - 验证browser-use包版本兼容性
+  - 确认技能调度器配置
 
-**更新** 新增API密钥和凭证系统的故障排除指导。
+**更新** 新增API密钥和凭证系统的故障排除指导，以及依赖安装和技能系统的故障排除指导。
 
 **章节来源**
 - [docs/1-INSTALLATION/docker-compose.md](file://docs/1-INSTALLATION/docker-compose.md#L238-L357)
@@ -524,8 +630,9 @@ end
 - [docs/5-CONFIGURATION/local-tts.md](file://docs/5-CONFIGURATION/local-tts.md#L218-L345)
 - [docs/5-CONFIGURATION/local-stt.md](file://docs/5-CONFIGURATION/local-stt.md#L219-L366)
 - [docs/3-USER-GUIDE/api-configuration.md](file://docs/3-USER-GUIDE/api-configuration.md#L324-L358)
+- [scripts/install-deps.sh](file://scripts/install-deps.sh#L1-L20)
 
 ## 结论
 通过 Docker Compose 将数据库、API、前端与本地 AI 服务解耦，Open Notebook 能够在不同场景下灵活部署：从最小化的基础分离部署，到完全本地化的隐私优先方案。结合完善的环境变量体系、卷与网络配置、健康检查与故障排除流程，用户可以稳定地在开发、测试与生产环境中运行该平台。
 
-**更新** 生产环境现在提供完整的API密钥环境变量支持，开发环境提供热重载和源代码挂载，增强了开发体验和安全性。建议优先采用基础分离部署作为起点，再根据需要逐步引入 Ollama 与 Speaches，以获得更好的性能与隐私保障。
+**更新** 生产环境现在提供完整的API密钥环境变量支持和依赖安装脚本，开发环境提供热重载和源代码挂载，增强了开发体验和安全性。建议优先采用基础分离部署作为起点，再根据需要逐步引入 Ollama 与 Speaches，以获得更好的性能与隐私保障。技能系统的自动依赖安装机制进一步简化了开发环境的配置和维护工作。

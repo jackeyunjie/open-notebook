@@ -31,4 +31,12 @@ export const QUERY_KEYS = {
   podcastEpisode: (episodeId: string) => ['podcasts', 'episodes', episodeId] as const,
   episodeProfiles: ['podcasts', 'episode-profiles'] as const,
   speakerProfiles: ['podcasts', 'speaker-profiles'] as const,
+  // Skills
+  skillTypes: ['skills', 'types'] as const,
+  skillInstances: ['skills', 'instances'] as const,
+  skillInstance: (id: string) => ['skills', 'instances', id] as const,
+  skillExecutions: ['skills', 'executions'] as const,
+  skillExecution: (id: string) => ['skills', 'executions', id] as const,
+  schedulerStatus: ['skills', 'scheduler', 'status'] as const,
+  skillInstanceSchedule: (id: string) => ['skills', 'instances', id, 'schedule'] as const,
 }

@@ -1,10 +1,10 @@
 import apiClient from './client'
 
-// Types
-export interface SkillInfo {
+export interface SkillType {
   skill_type: string
   name: string
   description: string
+  parameters_schema?: Record<string, unknown>
 }
 
 export interface SkillInstance {
@@ -24,26 +24,13 @@ export interface SkillExecution {
   id: string
   skill_instance_id: string
   status: 'pending' | 'running' | 'success' | 'failed' | 'cancelled'
-  trigger_type: string
+  trigger_type: 'manual' | 'scheduled'
   triggered_by?: string
   started_at?: string
   completed_at?: string
   output?: Record<string, unknown>
   error_message?: string
-  created_source_ids: string[]
-  created_note_ids: string[]
   duration_seconds?: number
-}
-
-export interface SchedulerStatus {
-  running: boolean
-  scheduled_jobs: number
-  jobs: {
-    job_id: string
-    skill_instance_id: string
-    next_run_time?: string
-    trigger: string
-  }[]
 }
 
 export interface CreateSkillInstanceRequest {
@@ -65,99 +52,93 @@ export interface UpdateSkillInstanceRequest {
   target_notebook_id?: string
 }
 
-export interface ExecuteSkillRequest {
-  parameters?: Record<string, unknown>
-  trigger_type?: string
-}
-
-export interface ExecuteSkillResponse {
-  execution_id: string
-  status: string
-  message: string
-}
-
-// API Functions
-export const skillsApi = {
-  // Available skills
-  listAvailable: async (): Promise<SkillInfo[]> => {
-    const response = await apiClient.get('/skills/available')
-    return response.data
-  },
-
-  // Skill instances
-  listInstances: async (params?: { skill_type?: string; notebook_id?: string }): Promise<SkillInstance[]> => {
-    const response = await apiClient.get('/skills/instances', { params })
-    return response.data
-  },
-
-  getInstance: async (id: string): Promise<SkillInstance> => {
-    const response = await apiClient.get(`/skills/instances/${id}`)
-    return response.data
-  },
-
-  createInstance: async (data: CreateSkillInstanceRequest): Promise<SkillInstance> => {
-    const response = await apiClient.post('/skills/instances', data)
-    return response.data
-  },
-
-  updateInstance: async (id: string, data: UpdateSkillInstanceRequest): Promise<SkillInstance> => {
-    const response = await apiClient.patch(`/skills/instances/${id}`, data)
-    return response.data
-  },
-
-  deleteInstance: async (id: string): Promise<void> => {
-    await apiClient.delete(`/skills/instances/${id}`)
-  },
-
-  // Execute skill
-  executeInstance: async (id: string, data?: ExecuteSkillRequest): Promise<ExecuteSkillResponse> => {
-    const response = await apiClient.post(`/skills/instances/${id}/execute`, data || {})
-    return response.data
-  },
-
-  executeDirect: async (skill_type: string, parameters: Record<string, unknown>, name?: string): Promise<ExecuteSkillResponse> => {
-    const response = await apiClient.post('/skills/execute', {
-      skill_type,
-      name: name || 'Ad-hoc Execution',
-      description: '',
-      parameters,
-    })
-    return response.data
-  },
-
-  // Execution history
-  listExecutions: async (params?: { instance_id?: string; limit?: number }): Promise<SkillExecution[]> => {
-    const response = await apiClient.get('/skills/executions', { params })
-    return response.data
-  },
-
-  getExecution: async (id: string): Promise<SkillExecution> => {
-    const response = await apiClient.get(`/skills/executions/${id}`)
-    return response.data
-  },
-
-  cancelExecution: async (id: string): Promise<void> => {
-    await apiClient.post(`/skills/executions/${id}/cancel`)
-  },
-
-  // Scheduler management
-  getSchedulerStatus: async (): Promise<SchedulerStatus> => {
-    const response = await apiClient.get('/skills/scheduler/status')
-    return response.data
-  },
-
-  getSkillSchedule: async (instanceId: string): Promise<{
+export interface SchedulerStatus {
+  running: boolean
+  scheduled_jobs: number
+  jobs: Array<{
+    job_id: string
     skill_instance_id: string
-    schedule?: string
     next_run_time?: string
-    enabled: boolean
-  }> => {
-    const response = await apiClient.get(`/skills/instances/${instanceId}/schedule`)
+    trigger: string
+  }>
+}
+
+export const skillsApi = {
+  // Skill Types
+  listTypes: async () => {
+    const response = await apiClient.get<SkillType[]>('/skills/available')
     return response.data
   },
 
-  rescheduleSkill: async (instanceId: string, schedule: string): Promise<{ message: string; schedule: string }> => {
-    const response = await apiClient.post(`/skills/instances/${instanceId}/reschedule`, { schedule })
+  // Skill Instances
+  listInstances: async () => {
+    const response = await apiClient.get<SkillInstance[]>('/skills/instances')
+    return response.data
+  },
+
+  getInstance: async (id: string) => {
+    const response = await apiClient.get<SkillInstance>(`/skills/instances/${id}`)
+    return response.data
+  },
+
+  createInstance: async (data: CreateSkillInstanceRequest) => {
+    const response = await apiClient.post<SkillInstance>('/skills/instances', data)
+    return response.data
+  },
+
+  updateInstance: async (id: string, data: UpdateSkillInstanceRequest) => {
+    const response = await apiClient.patch<SkillInstance>(`/skills/instances/${id}`, data)
+    return response.data
+  },
+
+  deleteInstance: async (id: string) => {
+    const response = await apiClient.delete(`/skills/instances/${id}`)
+    return response.data
+  },
+
+  executeInstance: async (id: string) => {
+    const response = await apiClient.post<{
+      execution_id: string
+      status: string
+      message: string
+    }>(`/skills/instances/${id}/execute`)
+    return response.data
+  },
+
+  // Executions
+  listExecutions: async () => {
+    const response = await apiClient.get<SkillExecution[]>('/skills/executions')
+    return response.data
+  },
+
+  getExecution: async (id: string) => {
+    const response = await apiClient.get<SkillExecution>(`/skills/executions/${id}`)
+    return response.data
+  },
+
+  cancelExecution: async (id: string) => {
+    const response = await apiClient.post(`/skills/executions/${id}/cancel`)
+    return response.data
+  },
+
+  // Scheduler
+  getSchedulerStatus: async () => {
+    const response = await apiClient.get<SchedulerStatus>('/skills/scheduler/status')
+    return response.data
+  },
+
+  getInstanceSchedule: async (id: string) => {
+    const response = await apiClient.get<{
+      skill_instance_id: string
+      schedule?: string
+      next_run_time?: string
+      enabled: boolean
+    }>(`/skills/instances/${id}/schedule`)
+    return response.data
+  },
+
+  rescheduleInstance: async (id: string, schedule: string) => {
+    const response = await apiClient.post(`/skills/instances/${id}/reschedule`, { schedule })
     return response.data
   },
 }

@@ -11,6 +11,7 @@
 - [open_notebook/domain/skill.py](file://open_notebook/domain/skill.py)
 - [open_notebook/skills/content_crawler.py](file://open_notebook/skills/content_crawler.py)
 - [open_notebook/skills/browser_base.py](file://open_notebook/skills/browser_base.py)
+- [open_notebook/skills/browser_task.py](file://open_notebook/skills/browser_task.py)
 - [open_notebook/skills/note_organizer.py](file://open_notebook/skills/note_organizer.py)
 - [api/main.py](file://api/main.py)
 - [docs/7-DEVELOPMENT/api-reference.md](file://docs/7-DEVELOPMENT/api-reference.md)
@@ -20,11 +21,10 @@
 
 ## 更新摘要
 **变更内容**
-- 新增调度器管理API端点：/skills/scheduler/status、/skills/instances/{instance_id}/schedule、/skills/instances/{instance_id}/reschedule
-- 添加调度器状态监控功能，支持获取调度器运行状态和已安排作业列表
-- 实现技能调度管理功能，支持查询技能实例的调度信息和手动重新调度
-- 集成APScheduler作为异步调度器，支持Cron表达式定时执行
-- 增强了技能系统的自动化执行能力，提供完整的调度生命周期管理
+- 新增BrowserTaskSkill和BrowserMonitorSkill两个浏览器自动化技能的API接口说明
+- 改进浏览器自动化功能，支持通用任务执行和网页监控
+- 更新技能系统API文档以包含新增的浏览器技能类型和参数配置
+- 增强浏览器自动化技能的参数验证和错误处理机制
 
 ## 目录
 1. [简介](#简介)
@@ -33,10 +33,11 @@
 4. [架构概览](#架构概览)
 5. [详细组件分析](#详细组件分析)
 6. [调度器API端点](#调度器api端点)
-7. [依赖关系分析](#依赖关系分析)
-8. [性能考虑](#性能考虑)
-9. [故障排除指南](#故障排除指南)
-10. [结论](#结论)
+7. [浏览器自动化技能](#浏览器自动化技能)
+8. [依赖关系分析](#依赖关系分析)
+9. [性能考虑](#性能考虑)
+10. [故障排除指南](#故障排除指南)
+11. [结论](#结论)
 
 ## 简介
 
@@ -50,6 +51,8 @@
 - `/skills/instances/{instance_id}/reschedule` - 手动重新调度技能实例
 
 这些端点支持基于Cron表达式的定时执行，为技能系统提供了强大的自动化执行能力。
+
+**更新** 新增了BrowserTaskSkill和BrowserMonitorSkill两个高级浏览器自动化技能，提供更灵活的浏览器任务执行和网页监控功能。
 
 ## 项目结构
 
@@ -74,11 +77,12 @@ I[domain/base.py - 基础模型]
 end
 subgraph "具体技能实现"
 J[content_crawler.py - 内容爬取]
-K[browser_base.py - 浏览器自动化]
-L[note_organizer.py - 笔记组织]
+K[browser_base.py - 浏览器自动化基础]
+L[browser_task.py - 浏览器任务技能]
+M[note_organizer.py - 笔记组织]
 end
 subgraph "数据库层"
-M[repository.py - 数据访问]
+N[repository.py - 数据访问]
 end
 A --> C
 A --> D
@@ -90,11 +94,12 @@ C --> I
 D --> C
 E --> H
 G --> H
-H --> M
-I --> M
+H --> N
+I --> N
 J --> C
 K --> C
-L --> C
+L --> K
+M --> C
 ```
 
 **图表来源**
@@ -273,11 +278,25 @@ class RssCrawlerSkill {
 +bool deduplicate
 +execute(context) SkillResult
 }
-class BrowserCrawlerSkill {
-+List urls
-+string extraction_task
-+int max_pages
-+bool follow_links
+class BrowserUseSkill {
++bool headless
++int timeout
++string window_size
++string chrome_path
++execute(context) SkillResult
+}
+class BrowserTaskSkill {
++string task
++string url
++int max_steps
++bool save_screenshot
++string extract_data
++execute(context) SkillResult
+}
+class BrowserMonitorSkill {
++string url
++string check_task
++string expected_value
 +execute(context) SkillResult
 }
 class NoteSummarizerSkill {
@@ -295,15 +314,18 @@ class NoteTaggerSkill {
 +execute(context) SkillResult
 }
 Skill <|-- RssCrawlerSkill
-Skill <|-- BrowserCrawlerSkill
+Skill <|-- BrowserUseSkill
 Skill <|-- NoteSummarizerSkill
 Skill <|-- NoteTaggerSkill
+BrowserUseSkill <|-- BrowserTaskSkill
+BrowserUseSkill <|-- BrowserMonitorSkill
 ```
 
 **图表来源**
 - [open_notebook/skills/base.py](file://open_notebook/skills/base.py#L83-L183)
 - [open_notebook/skills/content_crawler.py](file://open_notebook/skills/content_crawler.py#L20-L311)
-- [open_notebook/skills/browser_base.py](file://open_notebook/skills/browser_base.py#L177-L312)
+- [open_notebook/skills/browser_base.py](file://open_notebook/skills/browser_base.py#L17-L312)
+- [open_notebook/skills/browser_task.py](file://open_notebook/skills/browser_task.py#L17-L271)
 - [open_notebook/skills/note_organizer.py](file://open_notebook/skills/note_organizer.py#L19-L406)
 
 #### 技能配置 (SkillConfig)
@@ -383,7 +405,7 @@ participant Skill as 具体技能
 participant DB as 数据库
 API->>Runner : run_by_instance()
 Runner->>Instance : 加载实例配置
-Instance->>DB : 读取实例数据支持Union[str, datetime]
+Instance->>DB : 读取实例数据
 DB-->>Instance : 返回配置
 Runner->>Registry : 创建技能实例
 Registry->>Skill : 初始化技能
@@ -631,20 +653,35 @@ class SkillExecution {
 - 去重机制防止重复内容
 - 支持RSS 2.0和Atom格式
 
-#### 2. 浏览器自动化 (BrowserUseSkill)
+#### 2. **新增** 浏览器任务技能 (BrowserTaskSkill)
+基于browser-use库的通用浏览器自动化技能：
+- 支持自然语言描述的任意浏览器任务
+- 可配置最大步骤数和截图保存
+- 支持任务执行后的数据提取
+- 适用于表单填写、数据录入、网站监控等场景
+
+#### 3. **新增** 网页监控技能 (BrowserMonitorSkill)
+基于browser-use库的网页变化监控技能：
+- 定期检查网页内容变化
+- 支持预期值比较和变化检测
+- 适用于价格监控、库存检查、新闻更新等场景
+- 可配置Cron表达式进行定时监控
+
+#### 4. **更新** 浏览器自动化基础 (BrowserUseSkill)
 基于browser-use库的AI驱动浏览器自动化：
 - 支持无头模式运行
 - 可配置超时和窗口大小
 - 自动检测Chrome路径
 - 支持自然语言指令
+- **新增** 通用任务执行和监控功能
 
-#### 3. 笔记总结器 (NoteSummarizerSkill)
+#### 5. 笔记总结器 (NoteSummarizerSkill)
 使用AI自动生成笔记摘要：
 - 多种摘要风格（简洁、详细、要点、高管版）
 - 可配置摘要长度
 - 支持创建新笔记或更新现有笔记
 
-#### 4. 笔记标签器 (NoteTaggerSkill)
+#### 6. 笔记标签器 (NoteTaggerSkill)
 自动为笔记和源生成标签：
 - 支持笔记和源两种目标类型
 - 可配置标签类别
@@ -653,6 +690,7 @@ class SkillExecution {
 **章节来源**
 - [open_notebook/skills/content_crawler.py](file://open_notebook/skills/content_crawler.py#L20-L311)
 - [open_notebook/skills/browser_base.py](file://open_notebook/skills/browser_base.py#L17-L312)
+- [open_notebook/skills/browser_task.py](file://open_notebook/skills/browser_task.py#L17-L271)
 - [open_notebook/skills/note_organizer.py](file://open_notebook/skills/note_organizer.py#L19-L406)
 
 ## 调度器API端点
@@ -776,6 +814,131 @@ ReturnError --> Complete
 - [api/routers/skills.py](file://api/routers/skills.py#L433-L506)
 - [open_notebook/skills/scheduler.py](file://open_notebook/skills/scheduler.py#L31-L236)
 
+## 浏览器自动化技能
+
+**新增** 技能系统现在包含两个高级浏览器自动化技能，提供更灵活的浏览器任务执行和监控功能。
+
+### 浏览器任务技能 (BrowserTaskSkill)
+
+BrowserTaskSkill是一个通用的浏览器自动化技能，允许用户通过自然语言描述任意浏览器任务。
+
+#### 技能参数
+
+| 参数名 | 类型 | 默认值 | 描述 |
+|--------|------|--------|------|
+| task | string | - | 自然语言描述的任务内容 |
+| url | string | - | 起始URL（可选，可包含在任务描述中） |
+| max_steps | integer | 20 | 最大执行步骤数（1-100） |
+| save_screenshot | boolean | false | 是否保存最终截图 |
+| extract_data | string | - | 任务完成后要提取的数据描述 |
+
+#### 使用场景
+- 表单自动填写和提交
+- 数据录入自动化
+- 网站监控
+- 自动化测试
+- 带自定义逻辑的内容提取
+
+#### 执行流程
+```mermaid
+sequenceDiagram
+participant User as 用户
+participant API as 技能API
+participant TaskSkill as BrowserTaskSkill
+participant Browser as 浏览器
+User->>API : 执行浏览器任务
+API->>TaskSkill : 创建任务实例
+TaskSkill->>TaskSkill : 验证配置
+TaskSkill->>TaskSkill : 构建完整任务描述
+TaskSkill->>Browser : 执行AI驱动的浏览器任务
+Browser-->>TaskSkill : 返回执行结果
+TaskSkill->>TaskSkill : 处理结果和输出
+TaskSkill-->>API : 返回技能结果
+API-->>User : 返回执行结果
+```
+
+**图表来源**
+- [open_notebook/skills/browser_task.py](file://open_notebook/skills/browser_task.py#L100-L161)
+
+#### 执行结果
+成功的执行会返回包含以下信息的结果：
+- `task`: 执行的任务描述
+- `steps_taken`: 实际执行的步骤数
+- `result`: 任务执行的最终结果
+- `screenshot_saved`: 截图保存状态（如果启用）
+
+### 网页监控技能 (BrowserMonitorSkill)
+
+BrowserMonitorSkill用于定期监控网页内容的变化，特别适用于价格监控、库存检查等场景。
+
+#### 技能参数
+
+| 参数名 | 类型 | 默认值 | 描述 |
+|--------|------|--------|------|
+| url | string | - | 要监控的URL |
+| check_task | string | - | 要检查/提取页面内容的描述 |
+| expected_value | string | - | 预期值（可选，用于变化警报） |
+
+#### 使用场景
+- 商品价格监控
+- 库存状态检查
+- 新闻网站更新监控
+- 网站内容变化通知
+
+#### 执行流程
+```mermaid
+sequenceDiagram
+participant Scheduler as 调度器
+participant MonitorSkill as BrowserMonitorSkill
+participant Browser as 浏览器
+Scheduler->>MonitorSkill : 定时触发监控
+MonitorSkill->>Browser : 访问监控URL
+Browser->>MonitorSkill : 返回页面内容
+MonitorSkill->>MonitorSkill : 提取目标值
+MonitorSkill->>MonitorSkill : 比较预期值和当前值
+MonitorSkill->>MonitorSkill : 判断是否发生变化
+MonitorSkill-->>Scheduler : 返回监控结果
+```
+
+**图表来源**
+- [open_notebook/skills/browser_task.py](file://open_notebook/skills/browser_task.py#L225-L270)
+
+#### 执行结果
+监控执行会返回以下信息：
+- `url`: 监控的URL
+- `current_value`: 当前提取的值
+- `expected_value`: 预期值（如果设置了）
+- `changed`: 值是否发生变化的布尔标志
+
+### 浏览器自动化基础 (BrowserUseSkill)
+
+BrowserUseSkill是所有浏览器相关技能的基础类，提供了AI驱动的浏览器自动化能力。
+
+#### 技能参数
+
+| 参数名 | 类型 | 默认值 | 描述 |
+|--------|------|--------|------|
+| headless | boolean | true | 无头模式运行 |
+| timeout | integer | 30 | 页面加载超时时间（秒） |
+| window_size | string | "1920,1080" | 浏览器窗口大小(width,height) |
+| chrome_path | string | "/usr/bin/google-chrome" | Chrome可执行文件路径 |
+
+#### 核心功能
+- **AI驱动的浏览器控制**：使用browser-use库实现自然语言控制
+- **智能内容提取**：自动识别和提取页面内容
+- **动态页面处理**：支持JavaScript渲染的动态内容
+- **资源管理**：自动管理浏览器和LLM资源的生命周期
+
+#### 错误处理
+- **Chrome路径检测**：自动检测Chrome安装位置
+- **LLM配置**：使用项目AI配置系统
+- **异常捕获**：全面的异常处理和错误报告
+- **资源清理**：确保浏览器会话正确关闭
+
+**章节来源**
+- [open_notebook/skills/browser_task.py](file://open_notebook/skills/browser_task.py#L17-L271)
+- [open_notebook/skills/browser_base.py](file://open_notebook/skills/browser_base.py#L17-L312)
+
 ## 依赖关系分析
 
 技能系统与其他模块的依赖关系如下：
@@ -791,30 +954,32 @@ E[httpx - HTTP客户端]
 F[Browser-use - 浏览器自动化]
 G[APScheduler - 异步调度器]
 H[CronTrigger - Cron表达式解析]
+I[LangChain - LLM集成]
+J[OpenAI/Anthropic - AI模型]
 end
 subgraph "内部模块"
-I[技能路由器]
-J[技能基础框架]
-K[技能注册表]
-L[技能执行器]
-M[技能调度器]
-N[领域模型]
-O[具体技能实现]
-P[数据模型层]
+K[技能路由器]
+L[技能基础框架]
+M[技能注册表]
+N[技能执行器]
+O[技能调度器]
+P[领域模型]
+Q[具体技能实现]
+R[数据模型层]
 end
-I --> J
-I --> K
-I --> L
-I --> M
-I --> P
-J --> N
-K --> J
-L --> J
-L --> N
-M --> N
-O --> J
-N --> C
-P --> B
+K --> L
+K --> M
+K --> N
+K --> O
+K --> R
+L --> P
+M --> L
+N --> L
+N --> P
+O --> P
+Q --> L
+P --> C
+R --> B
 ```
 
 **图表来源**
@@ -831,12 +996,14 @@ P --> B
 4. **日志记录**：完整的执行日志和调试信息
 5. **灵活的数据类型**：通过 Union[str, datetime] 和 Any 类型支持多种数据格式
 6. **调度器集成**：APScheduler提供可靠的异步调度能力
+7. **AI模型集成**：通过LangChain和AI配置系统集成多种AI提供商
+8. **浏览器自动化**：browser-use库提供强大的AI驱动浏览器控制
 
-**更新** 新增的调度器依赖增强了系统的自动化执行能力：
-- APScheduler提供异步调度支持
-- CronTrigger解析Cron表达式
-- 调度器状态监控和作业管理
-- 异常处理和日志记录机制
+**更新** 新增的浏览器自动化依赖增强了系统的网页自动化能力：
+- browser-use库提供AI驱动的浏览器控制
+- LangChain集成支持多种AI模型
+- 自动化的Chrome路径检测和配置
+- 智能的任务执行和内容提取
 
 **章节来源**
 - [open_notebook/database/repository.py](file://open_notebook/database/repository.py#L1-L195)
@@ -882,6 +1049,12 @@ P --> B
 - 作业去重和冲突避免
 - 内存友好的作业管理
 
+### 7. **新增** 浏览器自动化性能优化
+- 浏览器会话复用减少启动开销
+- AI模型缓存提高响应速度
+- 智能超时控制避免长时间等待
+- 并发任务管理优化资源使用
+
 ## 故障排除指南
 
 ### 常见问题及解决方案
@@ -901,42 +1074,57 @@ P --> B
 **原因**：SurrealDB连接配置错误
 **解决**：检查环境变量配置
 
-#### 4. 浏览器自动化失败
+#### 4. **新增** 浏览器自动化失败
 **症状**：browser-use初始化失败
 **原因**：Chrome路径或权限问题
 **解决**：确认Chrome安装和路径配置
 
-#### 5. 日期时间字段处理问题
+#### 5. **新增** AI模型集成问题
+**症状**：浏览器技能执行时AI模型加载失败
+**原因**：AI提供商配置错误或网络问题
+**解决**：检查AI提供商配置和网络连接
+
+#### 6. 日期时间字段处理问题
 **症状**：created 或 updated 字段序列化错误
 **原因**：数据类型不匹配
 **解决**：使用 Union[str, datetime] 类型自动处理字符串和datetime格式
 
-#### 6. API响应数据格式问题
+#### 7. API响应数据格式问题
 **症状**：API响应中的日期时间字段格式不一致
 **原因**：数据类型处理不统一
 **解决**：使用 Any 类型响应模型自动处理不同格式的数据
 
-#### 7. 边缘情况处理问题
+#### 8. 边缘情况处理问题
 **症状**：created_source_ids 或 created_note_ids 字段为空导致处理异常
 **原因**：字段值为None而非空列表
 **解决**：使用默认空列表值 `[]`，确保API响应的一致性和可靠性
 
-#### 8. **新增** 调度器状态监控问题
+#### 9. **新增** 调度器状态监控问题
 **症状**：`/skills/scheduler/status` 返回错误
 **原因**：调度器未启动或配置错误
 **解决**：检查调度器启动状态和Cron表达式格式
 
-#### 9. **新增** 技能调度查询失败
+#### 10. **新增** 技能调度查询失败
 **症状**：`/skills/instances/{instance_id}/schedule` 返回404
 **原因**：技能实例不存在或未启用
 **解决**：验证技能实例ID和启用状态
 
-#### 10. **新增** 技能重新调度失败
+#### 11. **新增** 技能重新调度失败
 **症状**：`/skills/instances/{instance_id}/reschedule` 返回400
 **原因**：Cron表达式格式错误或技能实例禁用
 **解决**：检查Cron表达式格式和技能实例状态
 
-#### 11. **新增** 调度器性能问题
+#### 12. **新增** 浏览器任务执行失败
+**症状**：BrowserTaskSkill执行失败
+**原因**：任务描述不清晰或目标网站限制
+**解决**：检查任务描述的完整性和目标网站的可访问性
+
+#### 13. **新增** 网页监控异常
+**症状**：BrowserMonitorSkill无法正确检测变化
+**原因**：提取规则不准确或页面结构变化
+**解决**：调整check_task描述或更新监控逻辑
+
+#### 14. **新增** 调度器性能问题
 **症状**：调度器响应缓慢或内存占用过高
 **原因**：作业过多或Cron表达式过于频繁
 **解决**：优化Cron表达式和作业数量
@@ -947,6 +1135,8 @@ P --> B
 - [api/routers/skills.py](file://api/routers/skills.py#L55-L87)
 - [open_notebook/domain/skill.py](file://open_notebook/domain/skill.py#L47-L49)
 - [open_notebook/skills/scheduler.py](file://open_notebook/skills/scheduler.py#L109-L151)
+- [open_notebook/skills/browser_task.py](file://open_notebook/skills/browser_task.py#L90-L99)
+- [open_notebook/skills/browser_task.py](file://open_notebook/skills/browser_task.py#L215-L224)
 
 ## 结论
 
@@ -957,6 +1147,11 @@ P --> B
 - `/skills/instances/{instance_id}/schedule` - 查询技能实例的调度信息
 - `/skills/instances/{instance_id}/reschedule` - 手动重新调度技能实例
 
+**更新** 最新的浏览器自动化增强显著扩展了系统的网页自动化能力，新增的BrowserTaskSkill和BrowserMonitorSkill提供了：
+- **BrowserTaskSkill**：通用浏览器任务执行，支持自然语言描述的任意浏览器操作
+- **BrowserMonitorSkill**：智能网页监控，支持内容变化检测和自动化告警
+- **BrowserUseSkill**：AI驱动的浏览器自动化基础，提供强大的浏览器控制能力
+
 系统的主要优势包括：
 - **高度可扩展**：支持自定义技能开发
 - **易于使用**：提供直观的REST API接口
@@ -965,8 +1160,12 @@ P --> B
 - **灵活的数据处理**：支持多种数据类型和格式
 - **强大的调度能力**：基于Cron表达式的精确定时执行
 - **完整的监控功能**：实时状态监控和作业管理
+- **先进的浏览器自动化**：AI驱动的网页操作和监控
+- **智能内容提取**：自动化的网页内容识别和提取
 
 **更新** 最新的改进显著增强了系统的数据处理能力和自动化执行能力，通过Union[str, datetime]类型注解和Any类型响应模型，系统现在能够更好地处理不同格式的日期时间数据和API响应数据，为未来的扩展提供了更好的基础。新增的 `model_config = {"arbitrary_types_allowed": True}` 配置和默认空列表值进一步提升了系统的健壮性和用户体验。
+
+**更新** 新增的浏览器自动化技能为系统带来了更强大的网页操作能力，支持从简单的表单填写到复杂的网页监控等各种应用场景，为用户提供了更加灵活和强大的自动化工具。
 
 未来的发展方向可能包括：
 - 更多内置技能类型
@@ -977,3 +1176,5 @@ P --> B
 - 更好的向后兼容性处理
 - **新增** 调度器性能优化和扩展
 - **新增** 更灵活的调度策略和配置选项
+- **新增** 浏览器自动化技能的进一步优化和扩展
+- **新增** AI模型集成的持续改进
