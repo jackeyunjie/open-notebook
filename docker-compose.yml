@@ -38,6 +38,9 @@ services:
       - MOONSHOT_API_KEY=sk-VqWRgeDnKXIED8kijgueo6jscY9Y5uHTXLWXpOt0Bi6FURzy
     volumes:
       - ./notebook_data:/app/data
+      # Mount local code changes for development
+      - ./open_notebook/ai/key_provider.py:/app/open_notebook/ai/key_provider.py
+      - ./api/main.py:/app/api/main.py
     depends_on:
       - surrealdb
     restart: always
