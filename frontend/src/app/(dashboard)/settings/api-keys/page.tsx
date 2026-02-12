@@ -84,8 +84,8 @@ const PROVIDER_DISPLAY_NAMES: Record<string, string> = {
 
 // All providers in display order
 const ALL_PROVIDERS = [
-  // 中文服务商优先
-  'aliyun_bailian', 'siliconflow', 'zhipu', 'deepseek', 'moonshot',
+  // 中文服务商优先 - DeepSeek 排第一
+  'deepseek', 'aliyun_bailian', 'siliconflow', 'zhipu', 'moonshot',
   // 国际服务商
   'openai', 'anthropic', 'google', 'groq', 'mistral',
   'xai', 'openrouter', 'voyage', 'elevenlabs', 'ollama',
