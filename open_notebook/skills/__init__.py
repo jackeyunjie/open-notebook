@@ -4,7 +4,7 @@ This module provides a lightweight skill framework based on LangChain,
 enabling automated content processing and intelligent note organization.
 """
 
-from open_notebook.skills.base import Skill, SkillConfig, SkillContext, SkillResult
+from open_notebook.skills.base import Skill, SkillConfig, SkillContext, SkillResult, SkillStatus
 from open_notebook.skills.registry import SkillRegistry, register_skill
 from open_notebook.skills.runner import SkillRunner, get_skill_runner
 
@@ -28,6 +28,7 @@ __all__ = [
     "SkillConfig",
     "SkillContext",
     "SkillResult",
+    "SkillStatus",
     "SkillRegistry",
     "register_skill",
     "SkillRunner",
