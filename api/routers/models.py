@@ -84,7 +84,9 @@ class ModelTestResponse(BaseModel):
 
 
 # Provider priority for auto-assignment (higher priority first)
+# DeepSeek prioritized for OPC scenarios (cost-effective, high-quality Chinese/English)
 PROVIDER_PRIORITY = [
+    "deepseek",
     "openai",
     "anthropic",
     "google",
@@ -93,7 +95,6 @@ PROVIDER_PRIORITY = [
     "zhipu",
     "mistral",
     "groq",
-    "deepseek",
     "xai",
     "openrouter",
     "ollama",
@@ -103,6 +104,7 @@ PROVIDER_PRIORITY = [
 
 # Model preference patterns (preferred models within each provider)
 MODEL_PREFERENCES = {
+    "deepseek": ["deepseek-chat", "deepseek-reasoner", "deepseek-coder"],
     "openai": ["gpt-4o", "gpt-4", "gpt-3.5-turbo"],
     "anthropic": ["claude-4-5-opus", "claude-3-5-sonnet", "claude-3-opus", "claude-3-sonnet"],
     "google": ["gemini-2.0", "gemini-1.5-pro", "gemini-pro"],

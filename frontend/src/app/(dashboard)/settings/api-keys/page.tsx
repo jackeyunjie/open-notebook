@@ -160,6 +160,64 @@ const TYPE_LABELS: Record<ModelType, string> = {
   speech_to_text: 'STT',
 }
 
+// 静态模型列表 - 用于下拉选择（当 API 发现失败时的 fallback）
+const PROVIDER_MODELS: Record<string, Record<string, string[]>> = {
+  deepseek: {
+    language: ['deepseek-chat', 'deepseek-reasoner'],
+  },
+  aliyun_bailian: {
+    language: ['qwen-max', 'qwen-plus', 'qwen-turbo', 'qwen-long', 'qwen-coder-plus', 'qwen-math-plus', 'qwen-vl-max', 'qwen-audio-turbo'],
+    embedding: ['text-embedding-v1', 'text-embedding-v2', 'text-embedding-v3'],
+  },
+  siliconflow: {
+    language: ['deepseek-ai/DeepSeek-V3', 'deepseek-ai/DeepSeek-R1', 'Qwen/Qwen2.5-72B-Instruct', 'Qwen/Qwen2.5-7B-Instruct', 'THUDM/glm-4-9b-chat'],
+    embedding: ['BAAI/bge-large-zh-v1.5', 'BAAI/bge-m3'],
+    text_to_speech: ['FunAudioLLM/CosyVoice2-0.5B'],
+  },
+  zhipu: {
+    language: ['glm-4-plus', 'glm-4-flash', 'glm-4v-plus', 'glm-4v-flash', 'glm-4-alltools'],
+    embedding: ['embedding-3', 'embedding-2'],
+  },
+  moonshot: {
+    language: ['moonshot-v1-8k', 'moonshot-v1-32k', 'moonshot-v1-128k'],
+  },
+  openai: {
+    language: ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'gpt-3.5-turbo', 'o1-preview', 'o1-mini'],
+    embedding: ['text-embedding-3-small', 'text-embedding-3-large', 'text-embedding-ada-002'],
+    text_to_speech: ['tts-1', 'tts-1-hd'],
+    speech_to_text: ['whisper-1'],
+  },
+  anthropic: {
+    language: ['claude-3-5-sonnet-20241022', 'claude-3-5-haiku-20241022', 'claude-3-opus-20240229', 'claude-3-sonnet-20240229', 'claude-3-haiku-20240307'],
+  },
+  google: {
+    language: ['gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-1.5-pro', 'gemini-1.5-flash'],
+    embedding: ['text-embedding-004', 'embedding-001'],
+  },
+  groq: {
+    language: ['llama-3.3-70b-versatile', 'llama-3.1-70b-versatile', 'llama-3.1-8b-instant', 'mixtral-8x7b-32768', 'gemma2-9b-it'],
+    speech_to_text: ['whisper-large-v3'],
+  },
+  mistral: {
+    language: ['mistral-large-latest', 'mistral-small-latest', 'pixtral-large-latest', 'codestral-latest'],
+    embedding: ['mistral-embed'],
+  },
+  xai: {
+    language: ['grok-2', 'grok-2-vision', 'grok-beta', 'grok-vision-beta'],
+  },
+  voyage: {
+    embedding: ['voyage-3', 'voyage-3-lite', 'voyage-2'],
+  },
+  elevenlabs: {
+    text_to_speech: ['eleven_multilingual_v2', 'eleven_flash_v2_5', 'eleven_turbo_v2_5'],
+    speech_to_text: ['scribe_v1'],
+  },
+  ollama: {
+    language: ['llama3.1', 'llama3.2', 'qwen2.5', 'deepseek-coder-v2', 'phi4', 'mistral', 'gemma2'],
+    embedding: ['nomic-embed-text', 'mxbai-embed-large'],
+  },
+}
+
 // =============================================================================
 // Credential Form Dialog
 // =============================================================================
@@ -195,14 +253,32 @@ function CredentialFormDialog({
   const [credentialsPath, setCredentialsPath] = useState('')
   // Modalities
   const [modalities, setModalities] = useState<string[]>([])
+  // 模型选择状态
+  const [selectedModels, setSelectedModels] = useState<Record<string, string[]>>({})
 
-  // 中文服务商默认 base URL
+  // 所有服务商默认 base URL
   const getDefaultBaseUrl = (provider: string): string => {
     const defaultUrls: Record<string, string> = {
+      // 中文服务商
+      deepseek: 'https://api.deepseek.com/v1',
       aliyun_bailian: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
       siliconflow: 'https://api.siliconflow.cn/v1',
       zhipu: 'https://open.bigmodel.cn/api/paas/v4',
       moonshot: 'https://api.moonshot.cn/v1',
+      // 国际服务商
+      openai: 'https://api.openai.com/v1',
+      anthropic: 'https://api.anthropic.com/v1',
+      google: 'https://generativelanguage.googleapis.com/v1beta',
+      groq: 'https://api.groq.com/openai/v1',
+      mistral: 'https://api.mistral.ai/v1',
+      xai: 'https://api.x.ai/v1',
+      openrouter: 'https://openrouter.ai/api/v1',
+      voyage: 'https://api.voyageai.com/v1',
+      elevenlabs: 'https://api.elevenlabs.io/v1',
+      ollama: 'http://localhost:11434/v1',
+      azure: '', // Azure 需要自定义 endpoint
+      vertex: '', // Vertex 需要自定义 endpoint
+      openai_compatible: '', // 用户自定义
     }
     return defaultUrls[provider] || ''
   }
@@ -224,6 +300,15 @@ function CredentialFormDialog({
       setLocation('')
       setCredentialsPath('')
       setModalities(PROVIDER_MODALITIES[provider] || ['language'])
+      // 初始化默认模型选择
+      const defaultModels: Record<string, string[]> = {}
+      const providerModels = PROVIDER_MODELS[provider] || {}
+      Object.entries(providerModels).forEach(([type, models]) => {
+        if (models.length > 0) {
+          defaultModels[type] = [models[0]] // 默认选择第一个模型
+        }
+      })
+      setSelectedModels(defaultModels)
     }
   }, [credential, provider])
 
@@ -369,6 +454,56 @@ function CredentialFormDialog({
                   {t.apiKeys.getApiKey} &rarr;
                 </a>
               )}
+            </div>
+          )}
+
+          {/* Model Selection - 模型选择 */}
+          {!isVertex && !isOllama && (
+            <div className="space-y-3">
+              <Label className="font-medium">选择模型 (Select Models)</Label>
+              <p className="text-xs text-muted-foreground">为该服务商选择要使用的模型，可多选</p>
+              
+              {modalities.map((modality) => {
+                const type = modality as ModelType
+                const availableModels = PROVIDER_MODELS[provider]?.[type] || []
+                const currentSelection = selectedModels[type] || []
+                
+                if (availableModels.length === 0) return null
+                
+                return (
+                  <div key={type} className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Badge className={TYPE_COLORS[type]}>
+                        {TYPE_ICONS[type]}
+                        <span className="ml-1">{TYPE_LABELS[type]}</span>
+                      </Badge>
+                      <span className="text-xs text-muted-foreground">
+                        {currentSelection.length} 个已选择
+                      </span>
+                    </div>
+                    <Select
+                      value={currentSelection[0] || ''}
+                      onValueChange={(value) => {
+                        setSelectedModels(prev => ({
+                          ...prev,
+                          [type]: [value]
+                        }))
+                      }}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder={`选择 ${TYPE_LABELS[type]} 模型...`} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {availableModels.map((model) => (
+                          <SelectItem key={model} value={model}>
+                            {model}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )
+              })}
             </div>
           )}
 
