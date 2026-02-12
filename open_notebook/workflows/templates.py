@@ -4,7 +4,7 @@ These templates provide ready-to-use workflows for common content creation,
 monitoring, and organization tasks.
 """
 
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from open_notebook.domain.workflow import WorkflowStepDefinition
 
