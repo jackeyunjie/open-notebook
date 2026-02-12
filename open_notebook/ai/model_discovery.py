@@ -213,6 +213,34 @@ ZHIPU_MODEL_TYPES = {
     "embedding": ["embedding"],
 }
 
+# 硅基流动 (SiliconFlow) Models - Static list
+SILICONFLOW_MODELS = {
+    "language": [
+        "deepseek-ai/DeepSeek-V3",
+        "deepseek-ai/DeepSeek-R1",
+        "deepseek-ai/DeepSeek-V2.5",
+        "Qwen/Qwen2.5-72B-Instruct",
+        "Qwen/Qwen2.5-32B-Instruct",
+        "Qwen/Qwen2.5-14B-Instruct",
+        "Qwen/Qwen2.5-7B-Instruct",
+        "Qwen/Qwen2-72B-Instruct",
+        "Qwen/Qwen2-7B-Instruct",
+        "meta-llama/Meta-Llama-3.1-70B-Instruct",
+        "meta-llama/Meta-Llama-3.1-8B-Instruct",
+        "THUDM/glm-4-9b-chat",
+        "01-ai/Yi-1.5-34B-Chat-16K",
+        "01-ai/Yi-1.5-9B-Chat-16K",
+    ],
+    "embedding": [
+        "BAAI/bge-large-zh-v1.5",
+        "BAAI/bge-m3",
+        "netease-youdao/bce-embedding-base_v1",
+    ],
+    "text_to_speech": [
+        "FunAudioLLM/CosyVoice2-0.5B",
+    ],
+}
+
 VOYAGE_MODEL_TYPES = {
     "embedding": ["voyage"],
 }
@@ -243,6 +271,8 @@ def classify_model_type(model_name: str, provider: str) -> str:
         "elevenlabs": ELEVENLABS_MODEL_TYPES,
         "moonshot": MOONSHOT_MODEL_TYPES,
         "zhipu": ZHIPU_MODEL_TYPES,
+        "siliconflow": SILICONFLOW_MODELS,
+        "aliyun_bailian": QWEN_MODEL_TYPES,  # 阿里云百炼使用通义千问模型
     }
 
     mapping = type_mappings.get(provider, {})
@@ -630,6 +660,94 @@ async def discover_zhipu_models() -> List[DiscoveredModel]:
     return models
 
 
+async def discover_siliconflow_models() -> List[DiscoveredModel]:
+    """Fetch available models from SiliconFlow API."""
+    api_key = os.environ.get("SILICONFLOW_API_KEY")
+    if not api_key:
+        return []
+
+    models = []
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                "https://api.siliconflow.cn/v1/models",
+                headers={"Authorization": f"Bearer {api_key}"},
+                timeout=30.0,
+            )
+            response.raise_for_status()
+            data = response.json()
+
+            for model in data.get("data", []):
+                model_id = model.get("id", "")
+                if model_id:
+                    model_type = classify_model_type(model_id, "siliconflow")
+                    models.append(
+                        DiscoveredModel(
+                            name=model_id,
+                            provider="siliconflow",
+                            model_type=model_type,
+                        )
+                    )
+    except Exception as e:
+        logger.warning(f"Failed to discover SiliconFlow models: {e}")
+        # Fallback to static list if API fails
+        for model_type, model_list in SILICONFLOW_MODELS.items():
+            for model_name in model_list:
+                models.append(
+                    DiscoveredModel(
+                        name=model_name,
+                        provider="siliconflow",
+                        model_type=model_type,
+                    )
+                )
+
+    return models
+
+
+async def discover_aliyun_bailian_models() -> List[DiscoveredModel]:
+    """Fetch available models from Alibaba Cloud Bailian API."""
+    api_key = os.environ.get("DASHSCOPE_API_KEY")
+    if not api_key:
+        return []
+
+    models = []
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                "https://dashscope.aliyuncs.com/compatible-mode/v1/models",
+                headers={"Authorization": f"Bearer {api_key}"},
+                timeout=30.0,
+            )
+            response.raise_for_status()
+            data = response.json()
+
+            for model in data.get("data", []):
+                model_id = model.get("id", "")
+                if model_id:
+                    model_type = classify_model_type(model_id, "aliyun_bailian")
+                    models.append(
+                        DiscoveredModel(
+                            name=model_id,
+                            provider="aliyun_bailian",
+                            model_type=model_type,
+                        )
+                    )
+    except Exception as e:
+        logger.warning(f"Failed to discover Alibaba Bailian models: {e}")
+        # Fallback to static list if API fails
+        for model_type, model_list in QWEN_MODELS.items():
+            for model_name in model_list:
+                models.append(
+                    DiscoveredModel(
+                        name=model_name,
+                        provider="aliyun_bailian",
+                        model_type=model_type,
+                    )
+                )
+
+    return models
+
+
 async def discover_openrouter_models() -> List[DiscoveredModel]:
     """Fetch available models from OpenRouter API."""
     api_key = os.environ.get("OPENROUTER_API_KEY")
@@ -793,6 +911,9 @@ PROVIDER_DISCOVERY_FUNCTIONS = {
     "openai_compatible": discover_openai_compatible_models,
     "moonshot": discover_moonshot_models,
     "zhipu": discover_zhipu_models,
+    # 中文服务商
+    "aliyun_bailian": discover_aliyun_bailian_models,
+    "siliconflow": discover_siliconflow_models,
     "azure": None,  # Azure requires credential-based discovery (different auth)
     "vertex": None,  # Vertex requires credential-based discovery (service account)
 }

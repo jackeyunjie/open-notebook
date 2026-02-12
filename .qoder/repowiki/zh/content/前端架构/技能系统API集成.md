@@ -14,22 +14,36 @@
 - [open_notebook/skills/note_organizer.py](file://open_notebook/skills/note_organizer.py)
 - [api/main.py](file://api/main.py)
 - [frontend/src/lib/api/skills.ts](file://frontend/src/lib/api/skills.ts)
+- [frontend/src/lib/api/query-client.ts](file://frontend/src/lib/api/query-client.ts)
+- [frontend/src/components/providers/QueryProvider.tsx](file://frontend/src/components/providers/QueryProvider.tsx)
+- [frontend/src/app/(dashboard)/skills/page.tsx](file://frontend/src/app/(dashboard)/skills/page.tsx)
 </cite>
+
+## 更新摘要
+**所做更改**
+- 新增React Query状态管理章节，详细介绍前端状态管理架构
+- 更新前端集成章节，反映新的自定义hooks库实现
+- 新增React Query配置和查询键管理说明
+- 更新架构概览图，展示新的前端状态管理模式
+- 新增前端性能优化和缓存策略说明
 
 ## 目录
 1. [简介](#简介)
 2. [项目结构](#项目结构)
 3. [核心组件](#核心组件)
 4. [架构概览](#架构概览)
-5. [详细组件分析](#详细组件分析)
-6. [依赖关系分析](#依赖关系分析)
-7. [性能考虑](#性能考虑)
-8. [故障排除指南](#故障排除指南)
-9. [结论](#结论)
+5. [前端状态管理](#前端状态管理)
+6. [详细组件分析](#详细组件分析)
+7. [依赖关系分析](#依赖关系分析)
+8. [性能考虑](#性能考虑)
+9. [故障排除指南](#故障排除指南)
+10. [结论](#结论)
 
 ## 简介
 
 Open Notebook的技能系统是一个基于LangChain的轻量级自动化框架，为研究助手提供智能内容处理和自动化的技能执行能力。该系统通过REST API提供完整的技能生命周期管理，包括技能注册、实例化、调度执行和历史记录追踪。
+
+**更新** 技能系统现已集成React Query进行前端状态管理，提供了完整的自定义hooks库，包括useSkillInstances、useSkillInstance、useExecuteSkillInstance等，替代了原有的手动API调用模式。
 
 技能系统的核心价值在于其模块化设计，允许用户创建可重用的自动化单元来处理内容爬取、笔记组织、播客生成等任务。每个技能都是独立的可执行单元，可以手动触发或按计划自动执行。
 
@@ -57,9 +71,15 @@ H[内容爬虫技能]
 I[浏览器自动化技能]
 J[笔记组织技能]
 end
+subgraph "前端状态管理层"
+K[React Query客户端]
+L[查询键管理]
+M[自定义Hooks库]
+end
 subgraph "前端集成层"
-K[API客户端]
-L[类型定义]
+N[API客户端]
+O[类型定义]
+P[组件集成]
 end
 A --> C
 C --> D
@@ -71,16 +91,23 @@ D --> I
 D --> J
 K --> A
 L --> K
+M --> K
+N --> A
+O --> N
+P --> M
 ```
 
 **图表来源**
 - [api/routers/skills.py](file://api/routers/skills.py#L1-L507)
 - [open_notebook/skills/runner.py](file://open_notebook/skills/runner.py#L1-L250)
 - [open_notebook/skills/registry.py](file://open_notebook/skills/registry.py#L1-L133)
+- [frontend/src/lib/api/query-client.ts](file://frontend/src/lib/api/query-client.ts#L1-L43)
+- [frontend/src/lib/api/skills.ts](file://frontend/src/lib/api/skills.ts#L66-L144)
 
 **章节来源**
 - [api/routers/skills.py](file://api/routers/skills.py#L1-L507)
 - [open_notebook/skills/__init__.py](file://open_notebook/skills/__init__.py#L1-L35)
+- [frontend/src/lib/api/query-client.ts](file://frontend/src/lib/api/query-client.ts#L1-L43)
 
 ## 核心组件
 
@@ -119,12 +146,14 @@ L --> K
 ```mermaid
 sequenceDiagram
 participant Client as 客户端
+participant Query as React Query
 participant API as 技能API
 participant Runner as 技能运行器
 participant Registry as 注册表
 participant Domain as 领域模型
 participant Scheduler as 调度器
-Client->>API : 创建技能实例
+Client->>Query : 请求技能数据
+Query->>API : 发起HTTP请求
 API->>Domain : 保存实例配置
 API->>Scheduler : 注册定时任务
 Scheduler->>Runner : 触发技能执行
@@ -134,13 +163,94 @@ Runner->>Registry : 创建技能实例
 Registry->>Runner : 返回技能对象
 Runner->>Runner : 执行技能逻辑
 Runner->>Domain : 记录执行历史
-Runner->>Client : 返回执行结果
+Runner->>API : 返回执行结果
+API->>Query : 缓存响应数据
+Query->>Client : 提供最新数据
 ```
 
 **图表来源**
 - [api/routers/skills.py](file://api/routers/skills.py#L162-L201)
 - [open_notebook/skills/runner.py](file://open_notebook/skills/runner.py#L41-L150)
 - [open_notebook/skills/scheduler.py](file://open_notebook/skills/scheduler.py#L61-L117)
+- [frontend/src/lib/api/query-client.ts](file://frontend/src/lib/api/query-client.ts#L3-L15)
+
+## 前端状态管理
+
+**新增** 技能系统现已全面采用React Query进行前端状态管理，提供了完整的自定义hooks库来替代原有的手动API调用模式。
+
+### React Query配置
+
+React Query客户端配置提供了全局的缓存策略和错误处理机制：
+
+```mermaid
+flowchart TD
+Start([应用启动]) --> InitQuery[初始化QueryClient]
+InitQuery --> SetDefaults[设置默认配置]
+SetDefaults --> ConfigureQueries[配置查询选项]
+SetDefaults --> ConfigureMutations[配置变更选项]
+ConfigureQueries --> StaleTime[5分钟过期时间]
+ConfigureQueries --> GCTime[10分钟垃圾回收]
+ConfigureQueries --> RetryCount[重试2次]
+ConfigureMutations --> MutationRetry[重试1次]
+StaleTime --> ProvideProvider[提供QueryProvider]
+GCTime --> ProvideProvider
+RetryCount --> ProvideProvider
+MutationRetry --> ProvideProvider
+ProvideProvider --> Ready[状态管理就绪]
+```
+
+**图表来源**
+- [frontend/src/lib/api/query-client.ts](file://frontend/src/lib/api/query-client.ts#L3-L15)
+- [frontend/src/components/providers/QueryProvider.tsx](file://frontend/src/components/providers/QueryProvider.tsx#L10-L16)
+
+### 查询键管理系统
+
+查询键系统提供了统一的数据标识和缓存管理：
+
+| 查询键 | 用途 | 参数 | 缓存策略 |
+|--------|------|------|----------|
+| skills:types | 技能类型列表 | 无 | 5分钟过期 |
+| skills:instances | 技能实例列表 | 无 | 5分钟过期 |
+| skills:instances:{id} | 单个技能实例 | 实例ID | 5分钟过期 |
+| skills:executions | 执行历史列表 | 无 | 5分钟过期 |
+| skills:scheduler:status | 调度器状态 | 无 | 5分钟过期 |
+
+**章节来源**
+- [frontend/src/lib/api/query-client.ts](file://frontend/src/lib/api/query-client.ts#L17-L42)
+
+### 自定义Hooks库
+
+**更新** 新增了完整的自定义hooks库，包括useSkillInstances、useSkillInstance、useExecuteSkillInstance等：
+
+```mermaid
+classDiagram
+class SkillHooks {
++useSkillInstances() Hook
++useSkillInstance(id) Hook
++useExecuteSkillInstance() Mutation
++useDeleteSkillInstance() Mutation
++useSchedulerStatus() Hook
+}
+class QueryHooks {
++useQuery(options) Query
++useMutation(options) Mutation
++invalidateQueries(keys) void
+}
+class ApiClient {
++listInstances() Promise
++getInstance(id) Promise
++executeInstance(id) Promise
++deleteInstance(id) Promise
+}
+SkillHooks --> QueryHooks : 使用
+SkillHooks --> ApiClient : 调用
+```
+
+**图表来源**
+- [frontend/src/app/(dashboard)/skills/page.tsx](file://frontend/src/app/(dashboard)/skills/page.tsx#L7-L22)
+
+**章节来源**
+- [frontend/src/app/(dashboard)/skills/page.tsx](file://frontend/src/app/(dashboard)/skills/page.tsx#L7-L22)
 
 ## 详细组件分析
 
@@ -455,39 +565,53 @@ B[APScheduler]
 C[Loguru]
 D[Pydantic]
 E[httpx]
+F[@tanstack/react-query]
+G[Lucide Icons]
+H[Next.js]
 end
 subgraph "内部模块"
-F[技能API路由器]
-G[技能运行器]
-H[技能注册表]
-I[技能调度器]
-J[领域模型]
-K[技能实现]
+I[技能API路由器]
+J[技能运行器]
+K[技能注册表]
+L[技能调度器]
+M[领域模型]
+N[技能实现]
+O[API客户端]
+P[React Query配置]
+Q[自定义Hooks]
+R[组件集成]
 end
 subgraph "AI集成"
-L[LangChain]
-M[AI提供商]
-N[模型发现]
+S[LangChain]
+T[AI提供商]
+U[模型发现]
 end
-A --> F
-F --> G
-G --> H
-G --> J
-I --> G
-H --> K
-G --> L
-L --> M
-M --> N
+A --> I
+I --> J
+J --> K
+J --> M
+L --> J
+K --> N
+J --> S
+S --> T
+T --> U
+F --> P
+P --> Q
+O --> I
+Q --> R
 style A fill:#e1f5fe
-style F fill:#f3e5f5
-style G fill:#e8f5e8
-style K fill:#fff3e0
+style I fill:#f3e5f5
+style J fill:#e8f5e8
+style N fill:#fff3e0
+style F fill:#e0f2f1
+style Q fill:#f1f8e9
 ```
 
 **图表来源**
 - [api/routers/skills.py](file://api/routers/skills.py#L10-L20)
 - [open_notebook/skills/runner.py](file://open_notebook/skills/runner.py#L10-L18)
 - [open_notebook/skills/scheduler.py](file://open_notebook/skills/scheduler.py#L8-L17)
+- [frontend/src/lib/api/query-client.ts](file://frontend/src/lib/api/query-client.ts#L1-L2)
 
 系统的关键依赖特性：
 
@@ -495,29 +619,54 @@ style K fill:#fff3e0
 2. **异步架构** - 全面使用async/await确保高性能
 3. **错误隔离** - 每个组件都有独立的错误处理机制
 4. **可扩展性** - 新技能类型可以轻松添加到系统中
+5. **状态管理现代化** - React Query提供响应式状态管理
 
 **章节来源**
 - [api/routers/skills.py](file://api/routers/skills.py#L10-L20)
 - [open_notebook/skills/runner.py](file://open_notebook/skills/runner.py#L10-L18)
+- [frontend/src/lib/api/query-client.ts](file://frontend/src/lib/api/query-client.ts#L1-L2)
 
 ## 性能考虑
 
-技能系统在设计时充分考虑了性能优化：
+**更新** 技能系统在设计时充分考虑了性能优化，现在包括React Query的缓存策略：
 
-### 并发执行
-- 使用AsyncIOScheduler确保非阻塞的任务调度
-- 技能执行采用异步模式，避免I/O阻塞
-- 支持任务级别的并发控制，防止资源争用
+### 前端性能优化
 
-### 缓存策略
-- 技能配置和元数据的内存缓存
-- 执行历史的分页查询优化
-- 重复内容的快速检测机制
+1. **React Query缓存策略**
+   - 默认5分钟的staleTime，减少不必要的API调用
+   - 10分钟的gcTime，优化内存使用
+   - 智能的查询失效机制，确保数据一致性
 
-### 资源管理
-- 自动化的浏览器实例清理
-- 异常情况下的资源回收
-- 内存使用监控和限制
+2. **并发执行优化**
+   - 使用AsyncIOScheduler确保非阻塞的任务调度
+   - 技能执行采用异步模式，避免I/O阻塞
+   - 支持任务级别的并发控制，防止资源争用
+
+3. **缓存策略**
+   - 技能配置和元数据的内存缓存
+   - 执行历史的分页查询优化
+   - 重复内容的快速检测机制
+
+4. **资源管理**
+   - 自动化的浏览器实例清理
+   - 异常情况下的资源回收
+   - 内存使用监控和限制
+
+### 后端性能优化
+
+1. **数据库查询优化**
+   - 针对常见查询模式的索引设计
+   - 分页查询减少单次响应大小
+   - 批量操作提升处理效率
+
+2. **API响应优化**
+   - JSON字段存储可变参数
+   - 详细的执行历史记录
+   - 错误处理和重试机制
+
+**章节来源**
+- [frontend/src/lib/api/query-client.ts](file://frontend/src/lib/api/query-client.ts#L3-L15)
+- [open_notebook/skills/runner.py](file://open_notebook/skills/runner.py#L20-L250)
 
 ## 故障排除指南
 
@@ -538,9 +687,16 @@ style K fill:#fff3e0
 - 检查网络连接和外部服务可用性
 - 验证技能参数的有效性
 
+**React Query相关问题**
+- 检查QueryClient配置是否正确初始化
+- 验证查询键是否与API端点匹配
+- 确认mutation是否正确处理错误状态
+- 验证缓存失效策略是否按预期工作
+
 **章节来源**
 - [open_notebook/skills/runner.py](file://open_notebook/skills/runner.py#L212-L237)
 - [open_notebook/skills/scheduler.py](file://open_notebook/skills/scheduler.py#L181-L206)
+- [frontend/src/lib/api/query-client.ts](file://frontend/src/lib/api/query-client.ts#L3-L15)
 
 ## 结论
 
@@ -551,5 +707,8 @@ Open Notebook的技能系统提供了一个强大而灵活的自动化框架，�
 3. **完善的监控** - 详细的执行历史和状态追踪
 4. **可靠的调度** - 基于APScheduler的稳定任务管理
 5. **异步架构** - 确保高并发场景下的性能表现
+6. **现代化前端** - React Query提供响应式状态管理和缓存优化
+
+**更新** 新的前端集成实现了完全的React Query状态管理，提供了完整的自定义hooks库，包括useSkillInstances、useSkillInstance、useExecuteSkillInstance等，显著提升了用户体验和开发效率。
 
 该系统为构建复杂的自动化工作流提供了坚实的基础，开发者可以通过简单的接口实现各种内容处理和自动化任务，大大提升了研究助手的智能化水平和工作效率。

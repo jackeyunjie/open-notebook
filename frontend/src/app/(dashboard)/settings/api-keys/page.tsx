@@ -75,11 +75,19 @@ const PROVIDER_DISPLAY_NAMES: Record<string, string> = {
   azure: 'Azure OpenAI',
   vertex: 'Google Vertex AI',
   openai_compatible: 'OpenAI Compatible',
+  // 中文服务商
+  aliyun_bailian: '阿里云百炼',
+  siliconflow: '硅基流动',
+  zhipu: '智谱 AI',
+  moonshot: '月之暗面',
 }
 
 // All providers in display order
 const ALL_PROVIDERS = [
-  'openai', 'anthropic', 'google', 'groq', 'mistral', 'deepseek',
+  // 中文服务商优先
+  'aliyun_bailian', 'siliconflow', 'zhipu', 'deepseek', 'moonshot',
+  // 国际服务商
+  'openai', 'anthropic', 'google', 'groq', 'mistral',
   'xai', 'openrouter', 'voyage', 'elevenlabs', 'ollama',
   'azure', 'vertex', 'openai_compatible',
 ]
@@ -100,6 +108,11 @@ const PROVIDER_MODALITIES: Record<string, ModelType[]> = {
   azure: ['language', 'embedding', 'text_to_speech', 'speech_to_text'],
   vertex: ['language', 'embedding', 'text_to_speech'],
   openai_compatible: ['language', 'embedding', 'text_to_speech', 'speech_to_text'],
+  // 中文服务商
+  aliyun_bailian: ['language', 'embedding'],
+  siliconflow: ['language', 'embedding', 'text_to_speech'],
+  zhipu: ['language', 'embedding'],
+  moonshot: ['language'],
 }
 
 // Documentation links
@@ -117,6 +130,11 @@ const PROVIDER_DOCS: Record<string, string> = {
   azure: 'https://portal.azure.com/#view/Microsoft_Azure_ProjectOxford/CognitiveServicesHub/~/OpenAI',
   vertex: 'https://cloud.google.com/vertex-ai/docs/start/cloud-environment',
   openai_compatible: 'https://github.com/lfnovo/open-notebook/blob/main/docs/5-CONFIGURATION/openai-compatible.md',
+  // 中文服务商
+  aliyun_bailian: 'https://bailian.console.aliyun.com/?apiKey=1#/api-key',
+  siliconflow: 'https://cloud.siliconflow.cn/account/ak',
+  zhipu: 'https://open.bigmodel.cn/usercenter/apikeys',
+  moonshot: 'https://platform.moonshot.cn/console/api-keys',
 }
 
 const TYPE_ICONS: Record<ModelType, React.ReactNode> = {
@@ -178,6 +196,17 @@ function CredentialFormDialog({
   // Modalities
   const [modalities, setModalities] = useState<string[]>([])
 
+  // 中文服务商默认 base URL
+  const getDefaultBaseUrl = (provider: string): string => {
+    const defaultUrls: Record<string, string> = {
+      aliyun_bailian: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+      siliconflow: 'https://api.siliconflow.cn/v1',
+      zhipu: 'https://open.bigmodel.cn/api/paas/v4',
+      moonshot: 'https://api.moonshot.cn/v1',
+    }
+    return defaultUrls[provider] || ''
+  }
+
   useEffect(() => {
     if (credential) {
       setName(credential.name || '')
@@ -189,7 +218,7 @@ function CredentialFormDialog({
       setModalities(credential.modalities || [])
     } else {
       setName('')
-      setBaseUrl('')
+      setBaseUrl(getDefaultBaseUrl(provider))
       setApiKey('')
       setProject('')
       setLocation('')

@@ -16,6 +16,9 @@
 - [api/routers/embedding.py](file://api/routers/embedding.py)
 - [api/routers/transformations.py](file://api/routers/transformations.py)
 - [api/routers/credentials.py](file://api/routers/credentials.py)
+- [api/routers/workflows.py](file://api/routers/workflows.py)
+- [api/routers/workflow_templates.py](file://api/routers/workflow_templates.py)
+- [api/routers/workflow_builder.py](file://api/routers/workflow_builder.py)
 </cite>
 
 ## 目录
@@ -40,6 +43,9 @@
 - 嵌入与重建
 - 模型与凭据管理
 - 播客生成与管理
+- **工作流管理（新增）** - 工作流定义、执行、调度和统计
+- **工作流模板（新增）** - 预构建工作流模板的浏览和实例化
+- **对话式工作流构建器（新增）** - AI驱动的工作流生成和优化
 - 错误处理与认证机制
 
 本参考文档提供每个端点的 HTTP 方法、URL 模式、请求/响应模型、认证方式、参数说明、返回值格式、错误处理以及最佳实践。
@@ -62,6 +68,9 @@ D --> D7["模型路由"]
 D --> D8["嵌入路由"]
 D --> D9["转换路由"]
 D --> D10["凭据路由"]
+D --> D11["工作流路由<br/>/api/workflows"]
+D --> D12["工作流模板路由<br/>/api/workflow-templates"]
+D --> D13["工作流构建器路由<br/>/api/workflow-builder"]
 ```
 
 **图表来源**
@@ -77,7 +86,7 @@ D --> D10["凭据路由"]
   - CORS 中间件：允许跨域访问。
   - 自定义异常处理器：确保错误响应包含 CORS 头部。
 - 数据模型
-  - 统一使用 Pydantic 模型定义请求/响应结构，涵盖笔记本、源、笔记、搜索、模型、转换、嵌入、凭据、播客等。
+  - 统一使用 Pydantic 模型定义请求/响应结构，涵盖笔记本、源、笔记、搜索、模型、转换、嵌入、凭据、播客、**工作流定义与执行**等。
 - 客户端 SDK
   - 提供 Python 客户端封装，自动注入 Authorization 头，支持超时配置与错误处理。
 
@@ -90,7 +99,7 @@ D --> D10["凭据路由"]
 ## 架构总览
 系统采用分层架构：
 - 表现层：FastAPI 路由器
-- 领域层：笔记本、源、笔记、模型、转换、聊天、播客等领域对象
+- 领域层：笔记本、源、笔记、模型、转换、聊天、播客、**工作流定义与执行**等领域对象
 - 命令与作业：异步命令队列（CommandService），用于后台处理（如源处理、嵌入、播客生成）
 - 存储：SurrealDB（通过 repository 查询与命令输入模型）
 - 外部集成：AI 提供商（OpenAI、Anthropic、Google 等），通过 Esperanto 工厂与模型管理器
@@ -108,6 +117,9 @@ R7["models.py"]
 R8["embedding.py"]
 R9["transformations.py"]
 R10["credentials.py"]
+R11["workflows.py"]
+R12["workflow_templates.py"]
+R13["workflow_builder.py"]
 end
 subgraph "领域层"
 M1["Notebook/Source/Note"]
@@ -115,6 +127,7 @@ M2["Model/DefaultModels/Credential"]
 M3["ChatSession"]
 M4["PodcastService"]
 M5["Transformation"]
+M6["WorkflowDefinition/WorkflowExecution"]
 end
 subgraph "命令与作业"
 C1["CommandService"]
@@ -131,11 +144,15 @@ R7 --> M2
 R8 --> M1
 R9 --> M5
 R10 --> M2
+R11 --> M6
+R12 --> M6
+R13 --> M6
 M1 --> C1
 M2 --> C1
 M3 --> C1
 M4 --> C1
 M5 --> C1
+M6 --> C1
 C1 --> C2
 C1 --> C3
 ```
@@ -151,6 +168,9 @@ C1 --> C3
 - [api/routers/embedding.py](file://api/routers/embedding.py#L1-L114)
 - [api/routers/transformations.py](file://api/routers/transformations.py#L1-L251)
 - [api/routers/credentials.py](file://api/routers/credentials.py#L1-L387)
+- [api/routers/workflows.py](file://api/routers/workflows.py#L1-L453)
+- [api/routers/workflow_templates.py](file://api/routers/workflow_templates.py#L1-L215)
+- [api/routers/workflow_builder.py](file://api/routers/workflow_builder.py#L1-L305)
 
 ## 详细组件分析
 
@@ -655,14 +675,87 @@ end
 - [api/routers/embedding.py](file://api/routers/embedding.py#L33-L70)
 - [api/routers/podcasts.py](file://api/routers/podcasts.py#L40-L62)
 
+### 工作流管理（/api/workflows）**新增**
+- **工作流定义管理**
+  - 列出工作流：GET /api/workflows?notebook_id={notebook_id}&enabled_only={bool}
+  - 创建工作流：POST /api/workflows
+  - 获取工作流：GET /api/workflows/{workflow_id}
+  - 更新工作流：PATCH /api/workflows/{workflow_id}
+  - 删除工作流：DELETE /api/workflows/{workflow_id}
+  - 复制工作流：POST /api/workflows/{workflow_id}/duplicate
+- **工作流执行管理**
+  - 执行工作流：POST /api/workflows/{workflow_id}/execute
+  - 列出执行历史：GET /api/workflows/executions?workflow_id={workflow_id}&limit={int}&status={status}
+  - 获取执行详情：GET /api/workflows/executions/{execution_id}
+  - 取消执行：POST /api/workflows/executions/{execution_id}/cancel
+- **工作流统计**
+  - 工作流统计：GET /api/workflows/{workflow_id}/stats
+  - 总体统计：GET /api/workflows/stats/overview
+- **工作流调度**
+  - 获取调度：GET /api/workflows/{workflow_id}/schedule
+  - 更新调度：PATCH /api/workflows/{workflow_id}/schedule
+  - 启用工作流：POST /api/workflows/{workflow_id}/enable
+  - 禁用工作流：POST /api/workflows/{workflow_id}/disable
+
+请求/响应模型（节选）
+- WorkflowCreate/Update/Response
+- ExecuteWorkflowRequest/Response
+- WorkflowExecutionResponse/StatsResponse
+- WorkflowScheduleResponse/UpdateWorkflowScheduleRequest
+
+**章节来源**
+- [api/routers/workflows.py](file://api/routers/workflows.py#L1-L453)
+- [open_notebook/domain/workflow.py](file://open_notebook/domain/workflow.py#L1-L309)
+- [open_notebook/workflows/service.py](file://open_notebook/workflows/service.py#L1-L240)
+
+### 工作流模板（/api/workflow-templates）**新增**
+- **模板浏览**
+  - 列出模板：GET /api/workflow-templates?category={category}
+  - 获取模板：GET /api/workflow-templates/{template_id}
+  - 获取分类：GET /api/workflow-templates/categories
+- **模板实例化**
+  - 实例化模板：POST /api/workflow-templates/{template_id}/instantiate
+  - 快速RSS转笔记：POST /api/workflow-templates/quick/rss-to-notes
+  - 快速内容再创作：POST /api/workflow-templates/quick/repurpose-content
+
+请求/响应模型（节选）
+- WorkflowTemplateResponse/ListResponse
+- InstantiateTemplateRequest/Response
+
+**章节来源**
+- [api/routers/workflow_templates.py](file://api/routers/workflow_templates.py#L1-L215)
+- [open_notebook/workflows/templates.py](file://open_notebook/workflows/templates.py#L1-L528)
+
+### 对话式工作流构建器（/api/workflow-builder）**新增**
+- **自然语言生成**
+  - 生成工作流：POST /api/workflow-builder/generate
+  - 优化工作流：POST /api/workflow-builder/refine
+- **建议与匹配**
+  - 获取建议：GET /api/workflow-builder/suggestions?user_goal={goal}&notebook_id={id}
+  - 快速创建：POST /api/workflow-builder/quick-create
+  - 匹配模板：POST /api/workflow-builder/match-template
+- **交互式构建**
+  - 需求分析：POST /api/workflow-builder/analyze-requirements
+
+请求/响应模型（节选）
+- GenerateWorkflowRequest/RefineWorkflowRequest
+- GeneratedWorkflowResponse/SuggestionResponse
+- ConversationMessage/WorkflowStepSuggestion
+
+**章节来源**
+- [api/routers/workflow_builder.py](file://api/routers/workflow_builder.py#L1-L305)
+- [open_notebook/workflows/conversational.py](file://open_notebook/workflows/conversational.py#L1-L426)
+
 ## 依赖关系分析
 - 组件耦合
-  - 路由器依赖领域模型（Notebook、Source、Note、Model、Transformation、ChatSession、Credential 等）。
+  - 路由器依赖领域模型（Notebook、Source、Note、Model、Transformation、ChatSession、Credential、**WorkflowDefinition、WorkflowExecution** 等）。
   - 异步处理通过 CommandService 与命令输入模型解耦。
   - 模型发现与提供商可用性通过 Esperanto 工厂与模型管理器实现。
+  - **工作流系统通过 WorkflowService 和 WorkflowEngine 解耦，支持调度和执行管理**。
 - 外部依赖
   - AI 提供商（OpenAI、Anthropic、Google 等）通过模型管理器与连接测试器集成。
   - 存储：SurrealDB（通过 repository 与命令输入模型）。
+  - **工作流模板依赖技能注册表（SkillRegistry）和AI模型**。
 - 循环依赖
   - 路由器与领域模型之间为单向依赖，避免循环导入。
 
@@ -673,30 +766,40 @@ R --> S["CommandService"]
 M --> S
 S --> CMD["命令输入模型"]
 R --> E["Esperanto 工厂/模型管理器"]
+R --> W["WorkflowService/Engine"]
+W --> T["TemplateRegistry"]
+W --> C["ConversationalBuilder"]
 ```
 
 **图表来源**
 - [api/routers/sources.py](file://api/routers/sources.py#L370-L385)
 - [api/routers/models.py](file://api/routers/models.py#L19-L26)
+- [api/routers/workflows.py](file://api/routers/workflows.py#L18-L22)
+- [api/routers/workflow_builder.py](file://api/routers/workflow_builder.py#L14-L16)
 
 **章节来源**
 - [api/routers/sources.py](file://api/routers/sources.py#L352-L426)
 - [api/routers/models.py](file://api/routers/models.py#L19-L26)
+- [api/routers/workflows.py](file://api/routers/workflows.py#L18-L22)
+- [api/routers/workflow_builder.py](file://api/routers/workflow_builder.py#L14-L16)
 
 ## 性能考虑
 - 超时配置
-  - 客户端默认超时 300 秒，可通过环境变量调整；转换、洞察、重建等长耗时操作建议增加超时。
+  - 客户端默认超时 300 秒，可通过环境变量调整；转换、洞察、重建、**工作流执行**等长耗时操作建议增加超时。
 - 异步处理
-  - 源处理、嵌入、播客生成均支持异步提交与状态轮询，避免阻塞请求。
+  - 源处理、嵌入、播客生成、**工作流执行**均支持异步提交与状态轮询，避免阻塞请求。
 - 分页与限制
-  - 源列表支持 limit（1-100）与 offset，搜索 limit 最大 1000。
+  - 源列表支持 limit（1-100）与 offset，搜索 limit 最大 1000，**工作流执行列表默认 limit 50**。
 - 向量搜索前置条件
   - 向量搜索需先配置嵌入模型，否则返回 400。
+- **工作流执行监控**
+  - **支持执行取消、重试配置、成功率统计**。
 
 **章节来源**
 - [api/client.py](file://api/client.py#L16-L41)
 - [api/routers/search.py](file://api/routers/search.py#L21-L27)
 - [api/routers/sources.py](file://api/routers/sources.py#L155-L174)
+- [api/routers/workflows.py](file://api/routers/workflows.py#L296-L309)
 
 ## 故障排除指南
 - 401 未授权
@@ -709,18 +812,23 @@ R --> E["Esperanto 工厂/模型管理器"]
   - 向量搜索需配置嵌入模型；模型测试失败请检查提供商凭据与网络连通性。
 - 源处理失败
   - 检查 command_id 对应的作业状态，查看 processing_info 中的错误信息。
+- **工作流执行失败**
+  - **检查工作流定义的有效性、步骤依赖关系、参数引用是否正确**。
+  - **查看执行历史中的错误信息和重试配置**。
 
 **章节来源**
 - [api/main.py](file://api/main.py#L130-L154)
 - [api/routers/sources.py](file://api/routers/sources.py#L562-L584)
 - [api/routers/search.py](file://api/routers/search.py#L21-L27)
+- [api/routers/workflows.py](file://api/routers/workflows.py#L312-L331)
 
 ## 结论
-本 API 参考文档系统性地梳理了 Open Notebook 的 RESTful 接口，覆盖从内容源到聊天、搜索、播客生成、模型与凭据管理的全链路能力。通过统一的数据模型、明确的认证与错误处理机制、以及异步作业支持，系统在易用性与扩展性之间取得平衡。建议在生产环境中：
+本 API 参考文档系统性地梳理了 Open Notebook 的 RESTful 接口，覆盖从内容源到聊天、搜索、播客生成、模型与凭据管理的全链路能力。**新增的工作流管理、模板浏览和对话式工作流构建器功能进一步增强了系统的自动化和智能化能力**。通过统一的数据模型、明确的认证与错误处理机制、以及异步作业支持，系统在易用性与扩展性之间取得平衡。建议在生产环境中：
 - 明确配置 OPEN_NOTEBOOK_PASSWORD 与 OPEN_NOTEBOOK_ENCRYPTION_KEY
 - 使用异步端点处理长耗时任务
 - 合理设置超时与分页参数
 - 通过 /api/models/providers 与 /api/credentials/status 检查提供商可用性与配置状态
+- **利用工作流模板和对话式构建器快速创建和优化工作流程**
 
 ## 附录
 
@@ -728,9 +836,9 @@ R --> E["Esperanto 工厂/模型管理器"]
 - 初始化客户端
   - 通过环境变量 API_BASE_URL 与 OPEN_NOTEBOOK_PASSWORD 自动注入基础 URL 与认证头。
 - 常用操作
-  - 获取笔记本列表、创建笔记本、创建内容源（支持 JSON 与表单）、执行转换、发起问答、生成播客等。
+  - 获取笔记本列表、创建笔记本、创建内容源（支持 JSON 与表单）、执行转换、发起问答、生成播客、**创建工作流、执行工作流、管理模板**等。
 - 超时与错误
-  - 客户端内置超时与错误包装，便于在长耗时操作（如转换、重建）中保持稳定。
+  - 客户端内置超时与错误包装，便于在长耗时操作（如转换、重建、**工作流执行**）中保持稳定。
 
 **章节来源**
 - [api/client.py](file://api/client.py#L13-L78)
@@ -742,7 +850,12 @@ R --> E["Esperanto 工厂/模型管理器"]
 - 向后兼容
   - 源创建支持旧版 notebook_id 字段（自动转换为 notebooks 数组），确保历史调用不中断。
   - 搜索端点同时支持文本与向量搜索，向量搜索需嵌入模型存在。
+- **新增工作流API**
+  - **新增的 /api/workflows、/api/workflow-templates、/api/workflow-builder 端点不影响现有API，保持完全向后兼容**。
 
 **章节来源**
 - [api/models.py](file://api/models.py#L280-L324)
 - [api/routers/search.py](file://api/routers/search.py#L21-L27)
+- [api/routers/workflows.py](file://api/routers/workflows.py#L1-L453)
+- [api/routers/workflow_templates.py](file://api/routers/workflow_templates.py#L1-L215)
+- [api/routers/workflow_builder.py](file://api/routers/workflow_builder.py#L1-L305)

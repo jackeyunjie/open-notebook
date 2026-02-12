@@ -32,6 +32,9 @@ TEST_MODELS = {
     "moonshot": ("moonshot-v1-8k", "language"),
     "qwen": ("qwen-turbo", "language"),
     "zhipu": ("glm-4-flash", "language"),
+    # 中文服务商
+    "aliyun_bailian": ("qwen-turbo", "language"),
+    "siliconflow": ("Qwen/Qwen2.5-7B-Instruct", "language"),
     "ollama": (None, "language"),  # Dynamic - will use first available model
     # Complex providers with additional configuration
     "vertex": ("gemini-2.0-flash", "language"),  # Uses Google Vertex AI

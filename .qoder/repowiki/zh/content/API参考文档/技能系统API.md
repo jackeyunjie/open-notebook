@@ -3,28 +3,23 @@
 <cite>
 **本文档引用的文件**
 - [api/routers/skills.py](file://api/routers/skills.py)
-- [open_notebook/skills/__init__.py](file://open_notebook/skills/__init__.py)
 - [open_notebook/skills/base.py](file://open_notebook/skills/base.py)
 - [open_notebook/skills/registry.py](file://open_notebook/skills/registry.py)
 - [open_notebook/skills/runner.py](file://open_notebook/skills/runner.py)
 - [open_notebook/skills/scheduler.py](file://open_notebook/skills/scheduler.py)
 - [open_notebook/domain/skill.py](file://open_notebook/domain/skill.py)
-- [open_notebook/skills/content_crawler.py](file://open_notebook/skills/content_crawler.py)
-- [open_notebook/skills/browser_base.py](file://open_notebook/skills/browser_base.py)
-- [open_notebook/skills/browser_task.py](file://open_notebook/skills/browser_task.py)
-- [open_notebook/skills/note_organizer.py](file://open_notebook/skills/note_organizer.py)
-- [api/main.py](file://api/main.py)
-- [docs/7-DEVELOPMENT/api-reference.md](file://docs/7-DEVELOPMENT/api-reference.md)
-- [open_notebook/database/repository.py](file://open_notebook/database/repository.py)
 - [open_notebook/domain/base.py](file://open_notebook/domain/base.py)
+- [open_notebook/skills/browser_task.py](file://open_notebook/skills/browser_task.py)
+- [open_notebook/skills/browser_base.py](file://open_notebook/skills/browser_base.py)
 </cite>
 
 ## 更新摘要
 **变更内容**
-- 新增BrowserTaskSkill和BrowserMonitorSkill两个浏览器自动化技能的API接口说明
-- 改进浏览器自动化功能，支持通用任务执行和网页监控
-- 更新技能系统API文档以包含新增的浏览器技能类型和参数配置
-- 增强浏览器自动化技能的参数验证和错误处理机制
+- 新增取消执行功能，支持取消运行中的技能执行
+- 简化SkillExecution数据模型，移除复杂的执行跟踪字段
+- 增强调度器状态管理接口，提供更完整的调度器监控能力
+- 更新浏览器自动化技能实现，新增BrowserTaskSkill和BrowserMonitorSkill
+- 改进数据模型的灵活性，支持Union[str, datetime]和Any类型处理
 
 ## 目录
 1. [简介](#简介)
@@ -33,11 +28,12 @@
 4. [架构概览](#架构概览)
 5. [详细组件分析](#详细组件分析)
 6. [调度器API端点](#调度器api端点)
-7. [浏览器自动化技能](#浏览器自动化技能)
-8. [依赖关系分析](#依赖关系分析)
-9. [性能考虑](#性能考虑)
-10. [故障排除指南](#故障排除指南)
-11. [结论](#结论)
+7. [取消执行功能](#取消执行功能)
+8. [浏览器自动化技能](#浏览器自动化技能)
+9. [依赖关系分析](#依赖关系分析)
+10. [性能考虑](#性能考虑)
+11. [故障排除指南](#故障排除指南)
+12. [结论](#结论)
 
 ## 简介
 
@@ -50,7 +46,7 @@
 - `/skills/instances/{instance_id}/schedule` - 查询技能实例的调度信息
 - `/skills/instances/{instance_id}/reschedule` - 手动重新调度技能实例
 
-这些端点支持基于Cron表达式的定时执行，为技能系统提供了强大的自动化执行能力。
+**更新** 新增了取消执行功能，允许用户取消正在运行的技能执行。取消执行功能通过将执行状态标记为"cancelled"来实现，同时保持执行记录的完整性。
 
 **更新** 新增了BrowserTaskSkill和BrowserMonitorSkill两个高级浏览器自动化技能，提供更灵活的浏览器任务执行和网页监控功能。
 
@@ -126,6 +122,7 @@ M --> C
 - 查看执行历史
 - **新增** 调度器状态监控
 - **新增** 技能调度管理
+- **新增** 取消执行功能
 
 ### 2. 技能基础框架
 定义了技能的标准接口和生命周期管理：
@@ -133,12 +130,15 @@ M --> C
 - `SkillConfig` 存储技能配置信息
 - `SkillContext` 传递执行上下文
 - `SkillResult` 记录执行结果
+- **新增** `SkillStatus` 包含CANCELLED状态
 
 ### 3. 技能注册表
 维护技能类型的映射关系，支持动态技能发现和实例化。
 
 ### 4. 技能执行器
 负责实际的技能执行，包括参数合并、上下文构建和结果记录。
+- **新增** `cancel_execution()` 方法支持取消执行
+- **新增** `get_execution_status()` 方法查询执行状态
 
 ### 5. **新增** 技能调度器 (SkillScheduler)
 基于APScheduler的异步调度器，支持：
@@ -150,7 +150,7 @@ M --> C
 ### 6. 数据模型层
 提供灵活的数据类型支持，特别是对日期时间字段的处理：
 - `SkillInstanceResponse` - 技能实例响应模型
-- `SkillExecutionResponse` - 技能执行响应模型
+- `SkillExecutionResponse` - 技能执行响应模型（简化版）
 - **新增** `SchedulerStatusResponse` - 调度器状态响应模型
 - **新增** `SkillScheduleResponse` - 技能调度响应模型
 - 支持Union[str, datetime]和Any类型的灵活数据处理
@@ -182,17 +182,18 @@ API->>Scheduler : 获取调度器状态
 Scheduler->>Scheduler : 检查运行状态
 Scheduler-->>API : 返回状态信息
 API-->>Client : 调度器状态
-Client->>API : POST /skills/instances/{id}/reschedule
-API->>Scheduler : 重新调度技能
-Scheduler->>DB : 更新调度配置
-DB-->>Scheduler : 确认保存
-Scheduler-->>API : 调度成功
-API-->>Client : 重新调度结果
+Client->>API : POST /skills/executions/{id}/cancel
+API->>Runner : 取消执行
+Runner->>DB : 更新执行状态为cancelled
+DB-->>Runner : 确认保存
+Runner-->>API : 取消成功
+API-->>Client : 执行已取消
 ```
 
 **图表来源**
 - [api/routers/skills.py](file://api/routers/skills.py#L452-L506)
 - [open_notebook/skills/scheduler.py](file://open_notebook/skills/scheduler.py#L49-L151)
+- [open_notebook/skills/runner.py](file://open_notebook/skills/runner.py#L212-L237)
 
 ### 技能生命周期
 
@@ -428,7 +429,7 @@ Runner-->>API : 执行完成
 
 #### 3. 执行状态管理
 - 监控运行中的执行
-- 支持取消操作
+- **新增** 支持取消操作
 - 记录执行历史
 
 **章节来源**
@@ -814,6 +815,59 @@ ReturnError --> Complete
 - [api/routers/skills.py](file://api/routers/skills.py#L433-L506)
 - [open_notebook/skills/scheduler.py](file://open_notebook/skills/scheduler.py#L31-L236)
 
+## 取消执行功能
+
+**新增** 技能系统现在支持取消正在运行的技能执行，为用户提供更好的执行控制能力。
+
+### 取消执行API端点
+
+#### 端点：`POST /api/skills/executions/{id}/cancel`
+取消指定的技能执行。
+
+**请求参数**
+- `id` (str): 技能执行ID (路径参数)
+
+**响应数据**
+- `message` (str): 操作结果消息
+
+**使用场景**
+- 取消长时间运行的技能执行
+- 响应用户取消请求
+- 处理异常或不需要的执行
+
+### 取消执行流程
+
+```mermaid
+sequenceDiagram
+participant Client as 客户端
+participant API as 技能API
+participant Runner as 执行器
+participant DB as 数据库
+Client->>API : POST /skills/executions/{id}/cancel
+API->>Runner : cancel_execution()
+Runner->>DB : 查询执行状态
+DB-->>Runner : 返回执行记录
+Runner->>DB : 更新状态为cancelled
+DB-->>Runner : 确认保存
+Runner-->>API : 取消成功
+API-->>Client : 执行已取消
+```
+
+**图表来源**
+- [api/routers/skills.py](file://api/routers/skills.py#L418-L430)
+- [open_notebook/skills/runner.py](file://open_notebook/skills/runner.py#L212-L237)
+
+### 取消执行限制
+
+- 只能取消状态为"running"的执行
+- 取消后执行状态标记为"cancelled"
+- 不会强制停止正在运行的进程
+- 会在数据库中记录取消原因
+
+**章节来源**
+- [api/routers/skills.py](file://api/routers/skills.py#L418-L430)
+- [open_notebook/skills/runner.py](file://open_notebook/skills/runner.py#L212-L237)
+
 ## 浏览器自动化技能
 
 **新增** 技能系统现在包含两个高级浏览器自动化技能，提供更灵活的浏览器任务执行和监控功能。
@@ -1055,6 +1109,12 @@ R --> B
 - 智能超时控制避免长时间等待
 - 并发任务管理优化资源使用
 
+### 8. **新增** 取消执行性能优化
+- 数据库级别的状态更新
+- 异步取消操作避免阻塞
+- 状态一致性保证
+- 取消操作的原子性处理
+
 ## 故障排除指南
 
 ### 常见问题及解决方案
@@ -1129,6 +1189,16 @@ R --> B
 **原因**：作业过多或Cron表达式过于频繁
 **解决**：优化Cron表达式和作业数量
 
+#### 15. **新增** 取消执行失败
+**症状**：`/skills/executions/{id}/cancel` 返回400
+**原因**：执行不存在或已经完成
+**解决**：检查执行ID的有效性和执行状态
+
+#### 16. **新增** 取消执行不生效
+**症状**：执行仍然继续运行
+**原因**：取消只更新数据库状态，不强制停止进程
+**解决**：理解取消机制的工作原理，等待进程自然结束
+
 **章节来源**
 - [api/routers/skills.py](file://api/routers/skills.py#L162-L169)
 - [open_notebook/skills/runner.py](file://open_notebook/skills/runner.py#L133-L149)
@@ -1152,6 +1222,8 @@ R --> B
 - **BrowserMonitorSkill**：智能网页监控，支持内容变化检测和自动化告警
 - **BrowserUseSkill**：AI驱动的浏览器自动化基础，提供强大的浏览器控制能力
 
+**更新** 最新的取消执行功能为系统提供了更好的执行控制能力，用户可以取消正在运行的技能执行，提高了系统的可用性和用户体验。
+
 系统的主要优势包括：
 - **高度可扩展**：支持自定义技能开发
 - **易于使用**：提供直观的REST API接口
@@ -1162,10 +1234,12 @@ R --> B
 - **完整的监控功能**：实时状态监控和作业管理
 - **先进的浏览器自动化**：AI驱动的网页操作和监控
 - **智能内容提取**：自动化的网页内容识别和提取
+- **灵活的执行控制**：支持取消执行和状态查询
+- **简化的数据模型**：移除复杂的执行跟踪字段，提高性能
 
 **更新** 最新的改进显著增强了系统的数据处理能力和自动化执行能力，通过Union[str, datetime]类型注解和Any类型响应模型，系统现在能够更好地处理不同格式的日期时间数据和API响应数据，为未来的扩展提供了更好的基础。新增的 `model_config = {"arbitrary_types_allowed": True}` 配置和默认空列表值进一步提升了系统的健壮性和用户体验。
 
-**更新** 新增的浏览器自动化技能为系统带来了更强大的网页操作能力，支持从简单的表单填写到复杂的网页监控等各种应用场景，为用户提供了更加灵活和强大的自动化工具。
+**更新** 新增的取消执行功能和简化的SkillExecution数据模型为系统带来了更好的用户体验和更高的性能表现，用户可以通过API轻松地控制技能执行，系统能够更高效地处理执行历史和状态信息。
 
 未来的发展方向可能包括：
 - 更多内置技能类型
@@ -1178,3 +1252,5 @@ R --> B
 - **新增** 更灵活的调度策略和配置选项
 - **新增** 浏览器自动化技能的进一步优化和扩展
 - **新增** AI模型集成的持续改进
+- **新增** 取消执行功能的进一步完善
+- **新增** 更精细的执行状态控制和查询接口
