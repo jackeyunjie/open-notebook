@@ -1130,29 +1130,93 @@ class ContentAdaptorSkill(Skill):
     description = "Adapt content for multiple social platforms with format optimization"
 
     PLATFORM_CONFIGS = {
+        # 海外平台
         "twitter": {
             "max_length": 280,
             "style": "concise, punchy, thread-friendly",
             "hashtag_count": 2,
-            "cta_types": ["Reply with your thoughts", "Retweet if you agree"]
+            "cta_types": ["Reply with your thoughts", "Retweet if you agree"],
+            "special_features": []
         },
         "linkedin": {
             "max_length": 3000,
             "style": "professional, story-driven, value-focused",
             "hashtag_count": 5,
-            "cta_types": ["Comment your experience", "Share with your network"]
+            "cta_types": ["Comment your experience", "Share with your network"],
+            "special_features": []
         },
         "instagram": {
             "max_length": 2200,
             "style": "visual, emoji-friendly, personal",
             "hashtag_count": 10,
-            "cta_types": ["Double tap if you agree", "Save for later"]
+            "cta_types": ["Double tap if you agree", "Save for later"],
+            "special_features": []
         },
         "tiktok": {
             "max_length": 2200,
             "style": "casual, hook-focused, trending",
             "hashtag_count": 5,
-            "cta_types": ["Follow for more", "Duet this"]
+            "cta_types": ["Follow for more", "Duet this"],
+            "special_features": []
+        },
+        # 中文平台
+        "xiaohongshu": {
+            "max_length": 1000,
+            "title_max_length": 20,
+            "style": "种草风格、真实体验分享、场景化描述、emoji丰富、亲切自然",
+            "hashtag_count": 8,
+            "cta_types": ["收藏不迷路", "评论区交流心得", "关注我持续更新", "点赞支持一下"],
+            "special_features": ["cover_suggestion", "keywords", "collection_focused"]
+        },
+        "jike": {
+            "max_length": 2000,
+            "style": "轻松随意、兴趣导向、话题讨论、圈子文化、真实表达",
+            "hashtag_count": 4,
+            "cta_types": ["你怎么看？", "一起来聊", "分享你的想法", "评论区见"],
+            "special_features": ["circle_suggestion", "topic_tags"]
+        },
+        "wechat": {
+            "max_length": 5000,
+            "title_max_length": 64,
+            "style": "深度专业、结构清晰、价值输出、逻辑严谨",
+            "hashtag_count": 0,
+            "cta_types": ["点赞在看", "转发给朋友", "留言讨论", "收藏备用"],
+            "special_features": ["abstract", "cover_image", "original_link"]
+        },
+        "shipinhao": {
+            "max_length": 1000,
+            "style": "社交传播导向、可深度、竖屏适配、引导关注",
+            "hashtag_count": 5,
+            "cta_types": ["关注看更多", "点赞支持", "转发给朋友", "评论区交流"],
+            "special_features": ["cover_suggestion", "link_to_article", "live_preview"]
+        },
+        "zhihu": {
+            "max_length": 10000,
+            "style": "专业严谨、逻辑清晰、干货输出、引用规范",
+            "hashtag_count": 5,
+            "cta_types": ["赞同收藏", "关注看更多", "评论区交流", "分享见解"],
+            "special_features": ["topic_tags", "reference_format", "quote_support"]
+        },
+        "douyin": {
+            "max_length": 500,
+            "style": "短平快、hook前置、口语化、挑战话题、节奏感强",
+            "hashtag_count": 5,
+            "cta_types": ["双击点赞", "关注不迷路", "评论区见", "分享给朋友"],
+            "special_features": ["challenge_topic", "bgm_suggestion", "hook_first"]
+        },
+        "weibo": {
+            "max_length": 5000,
+            "style": "热点敏感、话题参与、@互动、表情丰富、传播性强",
+            "hashtag_count": 5,
+            "cta_types": ["转发扩散", "评论区见", "点赞支持", "一起来聊"],
+            "special_features": ["topic_tags", "mentions", "article_link"]
+        },
+        "xiaoyuzhou": {
+            "max_length": 2000,
+            "style": "声音叙事、深度对话、陪伴感、知识输出、自然流畅",
+            "hashtag_count": 5,
+            "cta_types": ["订阅不迷路", "评论区交流", "分享给你的朋友", "收藏节目"],
+            "special_features": ["shownotes", "timestamps", "cover_art", "host_intro"]
         }
     }
 
@@ -1169,15 +1233,15 @@ class ContentAdaptorSkill(Skill):
         },
         "target_platforms": {
             "type": "array",
-            "items": {"type": "string", "enum": ["twitter", "linkedin", "instagram", "tiktok"]},
-            "default": ["twitter", "linkedin"],
-            "description": "Platforms to adapt for"
+            "items": {"type": "string", "enum": ["twitter", "linkedin", "instagram", "tiktok", "xiaohongshu", "jike", "wechat", "shipinhao", "zhihu", "douyin", "weibo", "xiaoyuzhou"]},
+            "default": ["xiaohongshu", "wechat"],
+            "description": "Platforms to adapt for (支持中文平台: 小红书、即刻、公众号、视频号、知乎、抖音、微博、小宇宙)"
         },
         "content_style": {
             "type": "string",
-            "enum": ["professional", "casual", "storytelling", "educational"],
+            "enum": ["professional", "casual", "storytelling", "educational", "zhongcao", "ganhuo", "gushi"],
             "default": "professional",
-            "description": "Style of adaptation"
+            "description": "Style of adaptation (中文风格: zhongcao种草、ganhuo干货、gushi故事)"
         },
         "include_cta": {
             "type": "boolean",
@@ -1217,6 +1281,10 @@ class ContentAdaptorSkill(Skill):
             from open_notebook.ai.provision import provision_langchain_model
 
             config = self.PLATFORM_CONFIGS.get(platform, self.PLATFORM_CONFIGS["twitter"])
+            
+            # 构建平台特定的额外字段
+            special_features = config.get('special_features', [])
+            platform_specific_fields = self._build_platform_fields(platform, special_features)
 
             prompt = f"""Adapt the following content for {platform.upper()}.
 
@@ -1236,7 +1304,8 @@ Provide:
 2. Suggested hashtags (max {config['hashtag_count']})
 3. Hook/first line (what grabs attention)
 4. Character count
-5. Recommended media type (image, video, carousel)
+5. Recommended media type (image, video, carousel, audio)
+{platform_specific_fields}
 
 Return JSON:
 {{
@@ -1245,10 +1314,13 @@ Return JSON:
   "hook": "attention-grabbing first line",
   "character_count": 245,
   "media_suggestion": "image carousel"
+  {self._build_platform_json_fields(platform, special_features)}
 }}"""
 
+            # 中文平台使用中文 system prompt
+            system_prompt = self._get_system_prompt(platform)
             messages = [
-                SystemMessage(content=f"You are a {platform} content expert."),
+                SystemMessage(content=system_prompt),
                 HumanMessage(content=prompt)
             ]
 
@@ -1284,6 +1356,75 @@ Return JSON:
                 "hashtags": [],
                 "error": str(e)
             }
+
+    def _get_system_prompt(self, platform: str) -> str:
+        """Get platform-specific system prompt."""
+        chinese_platforms = {"xiaohongshu", "jike", "wechat", "shipinhao", "zhihu", "douyin", "weibo", "xiaoyuzhou"}
+        
+        if platform in chinese_platforms:
+            platform_names = {
+                "xiaohongshu": "小红书",
+                "jike": "即刻", 
+                "wechat": "微信公众号",
+                "shipinhao": "微信视频号",
+                "zhihu": "知乎",
+                "douyin": "抖音",
+                "weibo": "微博",
+                "xiaoyuzhou": "小宇宙"
+            }
+            return f"你是{platform_names.get(platform, platform)}内容创作专家，深谙平台调性和用户偏好。"
+        else:
+            return f"You are a {platform} content expert."
+
+    def _build_platform_fields(self, platform: str, special_features: list) -> str:
+        """Build platform-specific field descriptions for prompt."""
+        fields = []
+        
+        if "cover_suggestion" in special_features:
+            fields.append("6. Cover image suggestion (封面图建议)")
+        if "keywords" in special_features:
+            fields.append("7. Keywords for SEO (关键词，用于搜索优化)")
+        if "circle_suggestion" in special_features:
+            fields.append("6. Recommended circles/communities (推荐圈子)")
+        if "abstract" in special_features:
+            fields.append("6. Article abstract/summary (文章摘要，80字以内)")
+        if "topic_tags" in special_features:
+            fields.append("6. Topic tags (话题标签)")
+        if "shownotes" in special_features:
+            fields.append("6. Shownotes structure (节目提纲和时间戳)")
+        if "timestamps" in special_features:
+            fields.append("7. Key timestamps (关键时间点标记)")
+        if "challenge_topic" in special_features:
+            fields.append("6. Suggested challenge/hashtag (推荐挑战话题)")
+        if "mentions" in special_features:
+            fields.append("6. Suggested @mentions (推荐@提及账号)")
+            
+        return "\n".join(fields) if fields else ""
+
+    def _build_platform_json_fields(self, platform: str, special_features: list) -> str:
+        """Build platform-specific JSON fields."""
+        fields = []
+        
+        if "cover_suggestion" in special_features:
+            fields.append('  "cover_suggestion": "封面图描述建议",')
+        if "keywords" in special_features:
+            fields.append('  "keywords": ["关键词1", "关键词2"],')
+        if "circle_suggestion" in special_features:
+            fields.append('  "recommended_circles": ["圈子1", "圈子2"],')
+        if "abstract" in special_features:
+            fields.append('  "abstract": "文章摘要",')
+        if "topic_tags" in special_features:
+            fields.append('  "topic_tags": ["话题1", "话题2"],')
+        if "shownotes" in special_features:
+            fields.append('  "shownotes": "节目详细提纲",')
+        if "timestamps" in special_features:
+            fields.append('  "timestamps": [{"time": "00:05:30", "topic": "话题描述"}],')
+        if "challenge_topic" in special_features:
+            fields.append('  "challenge_topic": "挑战话题",')
+        if "mentions" in special_features:
+            fields.append('  "suggested_mentions": ["@账号1", "@账号2"],')
+            
+        return "\n" + "\n".join(fields) if fields else ""
 
     async def execute(self, context: SkillContext) -> SkillResult:
         """Execute content adaptation."""
@@ -1343,26 +1484,68 @@ Return JSON:
     def _format_adaptations(self, adaptations: List[Dict], original: str) -> str:
         """Format adaptations as markdown."""
         lines = [
-            "# Platform Content Adaptations\n",
-            f"**Generated:** {datetime.now().strftime('%Y-%m-%d %H:%M')}",
-            f"**Style:** {self.content_style}",
-            f"**Original Length:** {len(original)} characters\n",
-            "## Original Content\n",
+            "# 平台内容适配 - Platform Content Adaptations\n",
+            f"**生成时间:** {datetime.now().strftime('%Y-%m-%d %H:%M')}",
+            f"**内容风格:** {self.content_style}",
+            f"**原始字数:** {len(original)} 字符\n",
+            "## 原始内容\n",
             f"> {original[:300]}{'...' if len(original) > 300 else ''}\n"
         ]
 
         for adaptation in adaptations:
             platform = adaptation.get("platform", "unknown")
+            platform_names = {
+                "xiaohongshu": "小红书",
+                "jike": "即刻",
+                "wechat": "微信公众号",
+                "shipinhao": "微信视频号",
+                "zhihu": "知乎",
+                "douyin": "抖音",
+                "weibo": "微博",
+                "xiaoyuzhou": "小宇宙",
+                "twitter": "Twitter/X",
+                "linkedin": "LinkedIn",
+                "instagram": "Instagram",
+                "tiktok": "TikTok"
+            }
+            platform_display = platform_names.get(platform, platform.upper())
+            
             lines.extend([
-                f"## {platform.upper()}\n",
-                f"**Hook:** {adaptation.get('hook', 'N/A')}",
-                f"**Character Count:** {adaptation.get('character_count', len(adaptation.get('adapted_text', '')))}",
-                f"**Media Suggestion:** {adaptation.get('media_suggestion', 'image')}",
+                f"## {platform_display}\n",
+                f"**Hook/开头:** {adaptation.get('hook', 'N/A')}",
+                f"**字数:** {adaptation.get('character_count', len(adaptation.get('adapted_text', '')))}",
+                f"**媒体建议:** {adaptation.get('media_suggestion', 'image')}",
+                ""
+            ])
+            
+            # 平台特定字段
+            if 'cover_suggestion' in adaptation:
+                lines.append(f"**封面建议:** {adaptation['cover_suggestion']}")
+            if 'keywords' in adaptation:
+                lines.append(f"**关键词:** {', '.join(adaptation['keywords'])}")
+            if 'abstract' in adaptation:
+                lines.append(f"**摘要:** {adaptation['abstract']}")
+            if 'recommended_circles' in adaptation:
+                lines.append(f"**推荐圈子:** {', '.join(adaptation['recommended_circles'])}")
+            if 'topic_tags' in adaptation:
+                lines.append(f"**话题标签:** {', '.join(adaptation['topic_tags'])}")
+            if 'challenge_topic' in adaptation:
+                lines.append(f"**挑战话题:** {adaptation['challenge_topic']}")
+            if 'suggested_mentions' in adaptation:
+                lines.append(f"**推荐@提及:** {', '.join(adaptation['suggested_mentions'])}")
+            if 'shownotes' in adaptation:
+                lines.append(f"**Shownotes:** {adaptation['shownotes']}")
+            if 'timestamps' in adaptation:
+                lines.append("**时间戳:**")
+                for ts in adaptation['timestamps']:
+                    lines.append(f"- {ts.get('time', '')}: {ts.get('topic', '')}")
+            
+            lines.extend([
                 "",
-                "**Content:**",
+                "**内容:**",
                 f"```\n{adaptation.get('adapted_text', 'N/A')}\n```",
                 "",
-                f"**Hashtags:** {', '.join(adaptation.get('hashtags', []))}",
+                f"**标签:** {', '.join(adaptation.get('hashtags', []))}",
                 ""
             ])
 
