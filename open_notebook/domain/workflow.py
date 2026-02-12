@@ -10,7 +10,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Any, ClassVar, Dict, List, Optional, Union
 
-from pydantic import Field
+from pydantic import BaseModel, Field
 
 from open_notebook.database.repository import repo_query
 from open_notebook.domain.base import ObjectModel
