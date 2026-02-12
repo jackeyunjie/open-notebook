@@ -40,10 +40,12 @@ services:
       - ./notebook_data:/app/data
       # Mount local code changes for development
       - ./open_notebook/skills:/app/open_notebook/skills
+      - ./open_notebook/workflows:/app/open_notebook/workflows
       - ./open_notebook/ai/key_provider.py:/app/open_notebook/ai/key_provider.py
       - ./open_notebook/domain/skill.py:/app/open_notebook/domain/skill.py
+      - ./open_notebook/domain/workflow.py:/app/open_notebook/domain/workflow.py
       - ./api/main.py:/app/api/main.py
-      - ./api/routers/skills.py:/app/api/routers/skills.py
+      - ./api/routers:/app/api/routers
       - ./scripts/install-deps.sh:/app/scripts/install-deps.sh
     # Install dependencies on startup, then run the original command
     command: >
