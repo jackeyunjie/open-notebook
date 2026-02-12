@@ -15,8 +15,11 @@ from open_notebook.skills.browser_task import BrowserTaskSkill, BrowserMonitorSk
 from open_notebook.skills.note_organizer import NoteSummarizerSkill, NoteTaggerSkill
 from open_notebook.skills.vikki_content_ops import (
     ContentAdaptorSkill,
+    CycleDiagnosticianSkill,
     PainpointScannerSkill,
     QuadrantClassifierSkill,
+    RatioMonitorSkill,
+    TopicEvaluatorSkill,
     TopicGeneratorSkill,
 )
 
@@ -42,4 +45,8 @@ __all__ = [
     "QuadrantClassifierSkill",
     "TopicGeneratorSkill",
     "ContentAdaptorSkill",
+    # Phase C: Multi-agent content strategy skills
+    "CycleDiagnosticianSkill",
+    "TopicEvaluatorSkill",
+    "RatioMonitorSkill",
 ]
