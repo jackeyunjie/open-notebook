@@ -1,0 +1,64 @@
+
+-- Migration 14: Add workflow tables for skill orchestration
+-- Creates tables for workflow definitions, executions, and step executions
+
+-- Workflow definitions (configured workflows)
+DEFINE TABLE workflow_definition SCHEMAFULL;
+DEFINE FIELD name ON workflow_definition TYPE string;
+DEFINE FIELD description ON workflow_definition TYPE option<string>;
+DEFINE FIELD enabled ON workflow_definition TYPE bool DEFAULT true;
+DEFINE FIELD steps ON workflow_definition TYPE array DEFAULT [];
+DEFINE FIELD steps.* ON workflow_definition TYPE object;
+DEFINE FIELD steps.*.step_id ON workflow_definition TYPE string;
+DEFINE FIELD steps.*.skill_type ON workflow_definition TYPE string;
+DEFINE FIELD steps.*.name ON workflow_definition TYPE option<string>;
+DEFINE FIELD steps.*.description ON workflow_definition TYPE option<string>;
+DEFINE FIELD steps.*.parameters ON workflow_definition TYPE option<object>;
+DEFINE FIELD steps.*.depends_on ON workflow_definition TYPE option<array>;
+DEFINE FIELD steps.*.condition ON workflow_definition TYPE option<string>;
+DEFINE FIELD steps.*.retry_on_fail ON workflow_definition TYPE int DEFAULT 0;
+DEFINE FIELD steps.*.retry_delay_seconds ON workflow_definition TYPE int DEFAULT 5;
+DEFINE FIELD steps.*.continue_on_fail ON workflow_definition TYPE bool DEFAULT false;
+DEFINE FIELD input_schema ON workflow_definition TYPE option<object>;
+DEFINE FIELD output_mapping ON workflow_definition TYPE option<object>;
+DEFINE FIELD schedule ON workflow_definition TYPE option<string>;
+DEFINE FIELD target_notebook_id ON workflow_definition TYPE option<string>;
+DEFINE FIELD created ON workflow_definition TYPE option<datetime>;
+DEFINE FIELD updated ON workflow_definition TYPE option<datetime>;
+
+-- Workflow executions (runtime history)
+DEFINE TABLE workflow_execution SCHEMAFULL;
+DEFINE FIELD workflow_definition_id ON workflow_execution TYPE string;
+DEFINE FIELD status ON workflow_execution TYPE string DEFAULT 'pending'
+    ASSERT $value IN ['pending', 'running', 'success', 'failed', 'cancelled', 'partial'];
+DEFINE FIELD trigger_type ON workflow_execution TYPE string DEFAULT 'manual'
+    ASSERT $value IN ['manual', 'schedule', 'event', 'api'];
+DEFINE FIELD triggered_by ON workflow_execution TYPE option<string>;
+DEFINE FIELD input_data ON workflow_execution TYPE option<object>;
+DEFINE FIELD started_at ON workflow_execution TYPE option<datetime>;
+DEFINE FIELD completed_at ON workflow_execution TYPE option<datetime>;
+DEFINE FIELD output ON workflow_execution TYPE option<object>;
+DEFINE FIELD error_message ON workflow_execution TYPE option<string>;
+DEFINE FIELD step_executions ON workflow_execution TYPE array DEFAULT [];
+DEFINE FIELD step_executions.* ON workflow_execution TYPE object;
+DEFINE FIELD step_executions.*.step_id ON workflow_execution TYPE string;
+DEFINE FIELD step_executions.*.skill_type ON workflow_execution TYPE string;
+DEFINE FIELD step_executions.*.status ON workflow_execution TYPE string;
+DEFINE FIELD step_executions.*.started_at ON workflow_execution TYPE option<datetime>;
+DEFINE FIELD step_executions.*.completed_at ON workflow_execution TYPE option<datetime>;
+DEFINE FIELD step_executions.*.attempt ON workflow_execution TYPE int DEFAULT 1;
+DEFINE FIELD step_executions.*.max_attempts ON workflow_execution TYPE int DEFAULT 1;
+DEFINE FIELD step_executions.*.output ON workflow_execution TYPE option<object>;
+DEFINE FIELD step_executions.*.error_message ON workflow_execution TYPE option<string>;
+DEFINE FIELD step_executions.*.created_source_ids ON workflow_execution TYPE option<array>;
+DEFINE FIELD step_executions.*.created_note_ids ON workflow_execution TYPE option<array>;
+DEFINE FIELD created_source_ids ON workflow_execution TYPE option<array>;
+DEFINE FIELD created_note_ids ON workflow_execution TYPE option<array>;
+DEFINE FIELD created ON workflow_execution TYPE option<datetime>;
+DEFINE FIELD updated ON workflow_execution TYPE option<datetime>;
+
+-- Index for performance
+DEFINE INDEX idx_workflow_execution_workflow_id ON workflow_execution FIELDS workflow_definition_id;
+DEFINE INDEX idx_workflow_execution_status ON workflow_execution FIELDS status;
+DEFINE INDEX idx_workflow_definition_enabled ON workflow_definition FIELDS enabled;
+DEFINE INDEX idx_workflow_definition_notebook ON workflow_definition FIELDS target_notebook_id;

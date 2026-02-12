@@ -1,0 +1,5 @@
+
+-- Rollback Migration 14: Remove workflow tables
+
+REMOVE TABLE workflow_definition;
+REMOVE TABLE workflow_execution;

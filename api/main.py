@@ -32,6 +32,9 @@ from api.routers import (
     sources,
     speaker_profiles,
     transformations,
+    workflows,
+    workflow_templates,
+    workflow_builder,
 )
 from api.routers import commands as commands_router
 import api.routers.skills as skills
@@ -102,13 +105,15 @@ async def lifespan(app: FastAPI):
     try:
         from open_notebook.skills.scheduler import skill_scheduler
         from open_notebook.skills.runner import SkillRunner
+        from open_notebook.workflows.service import WorkflowService
         runner = SkillRunner()
-        await skill_scheduler.start(runner)
+        workflow_service = WorkflowService()
+        await skill_scheduler.start(runner, workflow_service)
         logger.success("Skill scheduler started successfully")
-        
-        # Load existing schedules from database
+
+        # Load existing schedules from database (skills and workflows)
         scheduled_count = await skill_scheduler.load_schedules_from_database()
-        logger.info(f"Loaded {scheduled_count} scheduled skills from database")
+        logger.info(f"Loaded {scheduled_count} scheduled items from database")
     except Exception as e:
         logger.error(f"Failed to start skill scheduler: {e}")
         # Don't fail startup, but log error
@@ -211,6 +216,9 @@ app.include_router(chat.router, prefix="/api", tags=["chat"])
 app.include_router(source_chat.router, prefix="/api", tags=["source-chat"])
 app.include_router(credentials.router, prefix="/api", tags=["credentials"])
 app.include_router(skills.router, prefix="/api", tags=["skills"])
+app.include_router(workflows.router, prefix="/api", tags=["workflows"])
+app.include_router(workflow_templates.router, prefix="/api", tags=["workflow-templates"])
+app.include_router(workflow_builder.router, prefix="/api", tags=["workflow-builder"])
 
 
 @app.get("/")
