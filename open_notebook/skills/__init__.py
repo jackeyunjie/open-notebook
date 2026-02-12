@@ -13,6 +13,12 @@ from open_notebook.skills.content_crawler import RssCrawlerSkill
 from open_notebook.skills.browser_base import BrowserUseSkill, BrowserCrawlerSkill
 from open_notebook.skills.browser_task import BrowserTaskSkill, BrowserMonitorSkill
 from open_notebook.skills.note_organizer import NoteSummarizerSkill, NoteTaggerSkill
+from open_notebook.skills.vikki_content_ops import (
+    ContentAdaptorSkill,
+    PainpointScannerSkill,
+    QuadrantClassifierSkill,
+    TopicGeneratorSkill,
+)
 
 __all__ = [
     "Skill",
@@ -23,7 +29,7 @@ __all__ = [
     "register_skill",
     "SkillRunner",
     "get_skill_runner",
-    # Skill implementations
+    # Core skill implementations
     "RssCrawlerSkill",
     "BrowserUseSkill",
     "BrowserCrawlerSkill",
@@ -31,4 +37,9 @@ __all__ = [
     "BrowserMonitorSkill",
     "NoteSummarizerSkill",
     "NoteTaggerSkill",
+    # Vikki content operations skills
+    "PainpointScannerSkill",
+    "QuadrantClassifierSkill",
+    "TopicGeneratorSkill",
+    "ContentAdaptorSkill",
 ]

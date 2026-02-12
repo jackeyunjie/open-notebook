@@ -425,6 +425,153 @@ TEMPLATES: List[WorkflowTemplate] = [
     ),
 
     # -------------------------------------------------------------------------
+    # Vikki Content Operations (IP Content Strategy)
+    # -------------------------------------------------------------------------
+    WorkflowTemplate(
+        template_id="vikki_content_pipeline",
+        name="Vikki Content Pipeline",
+        description="Four-quadrant content strategy: scan painpoints → classify → generate topics → adapt for platforms. Based on Vikki's IP operations methodology.",
+        category="content_creation",
+        steps=[
+            {
+                "step_id": "scan_painpoints",
+                "skill_type": "painpoint_scanner",
+                "name": "Scan for Painpoints",
+                "description": "Identify instant, continuous, and hidden painpoints from content",
+                "parameters": {
+                    "source_ids": "{{input.source_ids|default([])}}",
+                    "note_ids": "{{input.note_ids|default([])}}",
+                    "text_content": "{{input.text_content|default('')}}",
+                    "painpoint_types": "{{input.painpoint_types|default(['instant', 'continuous', 'hidden'])}}",
+                    "min_urgency_score": "{{input.min_urgency_score|default(50)}}",
+                    "max_painpoints": "{{input.max_painpoints|default(10)}}",
+                    "target_notebook_id": "{{input.target_notebook_id}}",
+                },
+                "depends_on": [],
+            },
+            {
+                "step_id": "classify_quadrant",
+                "skill_type": "quadrant_classifier",
+                "name": "Classify to Quadrants",
+                "description": "Classify painpoints into Q1-Q4 framework",
+                "parameters": {
+                    "topics": "{{steps.scan_painpoints.output.painpoints|map(attribute='text')|list}}",
+                    "classification_mode": "{{input.classification_mode|default('automatic')}}",
+                    "save_as_tags": True,
+                    "target_notebook_id": "{{input.target_notebook_id}}",
+                },
+                "depends_on": ["scan_painpoints"],
+                "continue_on_fail": True,
+            },
+            {
+                "step_id": "generate_topics",
+                "skill_type": "topic_generator",
+                "name": "Generate Content Topics",
+                "description": "Generate high-ROI content ideas based on painpoints and quadrants",
+                "parameters": {
+                    "painpoints": "{{steps.scan_painpoints.output.painpoints}}",
+                    "target_quadrants": "{{steps.classify_quadrant.output.quadrant_distribution|dictsort(by='value')|reverse|map(attribute='0')|list[:2]}}",
+                    "topics_per_quadrant": "{{input.topics_per_quadrant|default(3)}}",
+                    "industry": "{{input.industry|default('general')}}",
+                    "content_formats": "{{input.content_formats|default(['article', 'video'])}}",
+                    "target_notebook_id": "{{input.target_notebook_id}}",
+                },
+                "depends_on": ["classify_quadrant"],
+            },
+            {
+                "step_id": "adapt_platforms",
+                "skill_type": "content_adaptor",
+                "name": "Adapt for Platforms",
+                "description": "Adapt generated topics for multiple social platforms (Q1/Q2 only)",
+                "parameters": {
+                    "source_content": "{{steps.generate_topics.output.prioritized[0].title}}\n\n{{steps.generate_topics.output.prioritized[0].hook}}",
+                    "target_platforms": "{{input.target_platforms|default(['twitter', 'linkedin'])}}",
+                    "content_style": "{{input.content_style|default('professional')}}",
+                    "include_cta": True,
+                    "target_notebook_id": "{{input.target_notebook_id}}",
+                },
+                "depends_on": ["generate_topics"],
+                "condition": "steps.classify_quadrant.output.classifications[0].quadrant in ['Q1', 'Q2'] if steps.classify_quadrant.output.classifications else False",
+                "continue_on_fail": True,
+            },
+        ],
+        input_schema={
+            "source_ids": {
+                "type": "array",
+                "items": {"type": "string"},
+                "default": [],
+                "description": "Source IDs to analyze for painpoints",
+            },
+            "note_ids": {
+                "type": "array",
+                "items": {"type": "string"},
+                "default": [],
+                "description": "Note IDs to analyze for painpoints",
+            },
+            "text_content": {
+                "type": "string",
+                "default": "",
+                "description": "Direct text content to analyze",
+            },
+            "target_notebook_id": {
+                "type": "string",
+                "description": "Notebook ID to save generated notes",
+            },
+            "painpoint_types": {
+                "type": "array",
+                "items": {"type": "string", "enum": ["instant", "continuous", "hidden"]},
+                "default": ["instant", "continuous", "hidden"],
+                "description": "Types of painpoints to detect",
+            },
+            "industry": {
+                "type": "string",
+                "default": "general",
+                "description": "Target industry for topic generation (e.g., saas, fitness, education)",
+            },
+            "topics_per_quadrant": {
+                "type": "integer",
+                "default": 3,
+                "minimum": 1,
+                "maximum": 10,
+                "description": "Number of topics to generate per quadrant",
+            },
+            "target_platforms": {
+                "type": "array",
+                "items": {"type": "string", "enum": ["twitter", "linkedin", "instagram", "tiktok"]},
+                "default": ["twitter", "linkedin"],
+                "description": "Platforms to adapt content for",
+            },
+            "content_style": {
+                "type": "string",
+                "enum": ["professional", "casual", "storytelling", "educational"],
+                "default": "professional",
+                "description": "Style of content adaptation",
+            },
+            "classification_mode": {
+                "type": "string",
+                "enum": ["automatic", "manual_review"],
+                "default": "automatic",
+                "description": "Classification confidence level",
+            },
+            "min_urgency_score": {
+                "type": "integer",
+                "default": 50,
+                "minimum": 0,
+                "maximum": 100,
+                "description": "Minimum urgency threshold for painpoints",
+            },
+        },
+        output_mapping={
+            "painpoints": "{{steps.scan_painpoints.output.painpoints}}",
+            "quadrant_distribution": "{{steps.classify_quadrant.output.quadrant_distribution}}",
+            "generated_topics": "{{steps.generate_topics.output.prioritized}}",
+            "content_calendar": "{{steps.generate_topics.output.content_calendar}}",
+            "platform_adaptations": "{{steps.adapt_platforms.output.adaptations}}",
+            "notes_created": "{{steps.scan_painpoints.output.created_note_ids + steps.classify_quadrant.output.created_note_ids + steps.generate_topics.output.created_note_ids + steps.adapt_platforms.output.created_note_ids}}",
+        },
+    ),
+
+    # -------------------------------------------------------------------------
     # Podcast Production
     # -------------------------------------------------------------------------
     WorkflowTemplate(
