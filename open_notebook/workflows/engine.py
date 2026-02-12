@@ -16,7 +16,6 @@ from typing import Any, Dict, List, Optional, Set
 
 from loguru import logger
 
-from open_notebook.domain.skill import SkillConfig
 from open_notebook.domain.workflow import (
     StepStatus,
     WorkflowDefinition,
@@ -25,7 +24,7 @@ from open_notebook.domain.workflow import (
     WorkflowStepDefinition,
     WorkflowStepExecution,
 )
-from open_notebook.skills import SkillContext, SkillRegistry, SkillResult, SkillStatus
+from open_notebook.skills import SkillConfig, SkillContext, SkillRegistry, SkillResult, SkillStatus
 
 
 class WorkflowContext:
