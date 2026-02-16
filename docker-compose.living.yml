@@ -1,0 +1,147 @@
+# Living Knowledge System - Docker Compose
+#
+# Usage:
+#   docker-compose -f docker-compose.living.yml up -d
+#   docker-compose -f docker-compose.living.yml logs -f
+#   docker-compose -f docker-compose.living.yml down
+
+version: "3.8"
+
+services:
+  # ===========================================================================
+  # PostgreSQL + TimescaleDB
+  # ===========================================================================
+  postgres:
+    image: timescale/timescaledb:latest-pg15
+    container_name: living_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: living
+      POSTGRES_PASSWORD: living
+      POSTGRES_DB: living_system
+      TZ: Asia/Shanghai
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-scripts:/docker-entrypoint-initdb.d
+    ports:
+      - "5433:5432"  # Expose on 5433 to avoid conflict with existing Postgres
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U living -d living_system"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - living_network
+
+  # ===========================================================================
+  # Living Knowledge System API
+  # ===========================================================================
+  living_api:
+    build:
+      context: .
+      dockerfile: Dockerfile.living
+      target: production
+    container_name: living_api
+    restart: unless-stopped
+    environment:
+      # Database
+      LIVING_DB_HOST: postgres
+      LIVING_DB_PORT: 5432
+      LIVING_DB_NAME: living_system
+      LIVING_DB_USER: living
+      LIVING_DB_PASSWORD: living
+      # Server
+      LIVING_HOST: 0.0.0.0
+      LIVING_PORT: 8888
+      # Features
+      LIVING_P0_ENABLED: "true"
+      LIVING_P0_SYNC_HOUR: "9"
+      LIVING_DATA_ENABLED: "true"
+      # Logging
+      LOG_LEVEL: INFO
+    ports:
+      - "8888:8888"
+    volumes:
+      - living_logs:/app/logs
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8888/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - living_network
+
+  # ===========================================================================
+  # P4 Data Agent (separate service for heavy data processing)
+  # ===========================================================================
+  living_data_agent:
+    build:
+      context: .
+      dockerfile: Dockerfile.living
+      target: production
+    container_name: living_data_agent
+    restart: unless-stopped
+    command: python -m open_notebook.skills.living.launcher
+    environment:
+      LIVING_DB_HOST: postgres
+      LIVING_DB_PORT: 5432
+      LIVING_DB_NAME: living_system
+      LIVING_DB_USER: living
+      LIVING_DB_PASSWORD: living
+      LIVING_DATA_ENABLED: "true"
+    volumes:
+      - living_logs:/app/logs
+    depends_on:
+      postgres:
+        condition: service_healthy
+      living_api:
+        condition: service_healthy
+    networks:
+      - living_network
+
+  # ===========================================================================
+  # Optional: pgAdmin for database management
+  # ===========================================================================
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: living_pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@living.system
+      PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+    ports:
+      - "5050:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      - postgres
+    networks:
+      - living_network
+    profiles:
+      - debug  # Only start with: docker-compose --profile debug up
+
+# =============================================================================
+# Volumes
+# =============================================================================
+volumes:
+  postgres_data:
+    driver: local
+  living_logs:
+    driver: local
+  pgadmin_data:
+    driver: local
+
+# =============================================================================
+# Networks
+# =============================================================================
+networks:
+  living_network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
