@@ -80,6 +80,7 @@ MOONSHOT_MODELS = {
 # Qwen (Alibaba) Models - Static list
 QWEN_MODELS = {
     "language": [
+        "qwen3.5-plus",  # Latest Qwen 3.5 series
         "qwen-plus",
         "qwen-max",
         "qwen-turbo",
@@ -182,6 +183,7 @@ DEEPSEEK_MODEL_TYPES = {
 QWEN_MODEL_TYPES = {
     "language": [
         "qwen",
+        "qwen3.5",
         "qwen-plus",
         "qwen-max",
         "qwen-turbo",
