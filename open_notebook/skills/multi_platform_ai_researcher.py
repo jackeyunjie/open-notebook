@@ -88,12 +88,18 @@ class MultiPlatformAIResearcher:
             )
             
             skill = XiaohongshuResearcherSkill()
+            await skill.initialize()  # Initialize browser first!
             all_notes = []
             
             for keyword in keywords[:3]:  # Limit to top 3 keywords
-                notes = await skill.search_keyword(keyword, max_results // 3)
-                all_notes.extend(notes)
-                
+                try:
+                    notes = await skill.search_keyword(keyword, max_results // 3)
+                    all_notes.extend(notes)
+                except Exception as e:
+                    logger.error(f"Failed to search '{keyword}': {e}")
+                    continue
+            
+            await skill.close()  # Clean up browser
             return all_notes
             
         except Exception as e:
