@@ -1,4 +1,3 @@
-import asyncio
 import sqlite3
 from typing import Annotated, Optional
 
@@ -14,6 +13,7 @@ from open_notebook.ai.provision import provision_langchain_model
 from open_notebook.config import LANGGRAPH_CHECKPOINT_FILE
 from open_notebook.domain.notebook import Notebook
 from open_notebook.utils import clean_thinking_content
+from open_notebook.utils.async_bridge import await_bridge
 
 
 class ThreadState(TypedDict):
@@ -31,40 +31,13 @@ def call_model_with_messages(state: ThreadState, config: RunnableConfig) -> dict
         "model_override"
     )
 
-    # Handle async model provisioning from sync context
-    def run_in_new_loop():
-        """Run the async function in a new event loop"""
-        new_loop = asyncio.new_event_loop()
-        try:
-            asyncio.set_event_loop(new_loop)
-            return new_loop.run_until_complete(
-                provision_langchain_model(
-                    str(payload), model_id, "chat", max_tokens=8192
-                )
-            )
-        finally:
-            new_loop.close()
-            asyncio.set_event_loop(None)
-
-    try:
-        # Try to get the current event loop
-        asyncio.get_running_loop()
-        # If we're in an event loop, run in a thread with a new loop
-        import concurrent.futures
-
-        with concurrent.futures.ThreadPoolExecutor() as executor:
-            future = executor.submit(run_in_new_loop)
-            model = future.result()
-    except RuntimeError:
-        # No event loop running, safe to use asyncio.run()
-        model = asyncio.run(
-            provision_langchain_model(
-                str(payload),
-                model_id,
-                "chat",
-                max_tokens=8192,
-            )
-        )
+    # Handle async model provisioning from sync context using thread-safe bridge
+    model = await_bridge(
+        lambda: provision_langchain_model(
+            str(payload), model_id, "chat", max_tokens=8192
+        ),
+        timeout=30.0,
+    )
 
     ai_message = model.invoke(payload)
 
