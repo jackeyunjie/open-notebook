@@ -3,7 +3,19 @@
   "version": "1.0.0",
   "description": "Automatically research 'solopreneur' topics on Xiaohongshu (Little Red Book) and save findings to Notebook.",
   "author": "Open Notebook Team",
-  "tags": ["research", "xiaohongshu", "content-analysis", "automation"],
+  "tags": [
+    "research",
+    "xiaohongshu",
+    "content-analysis",
+    "automation",
+    "market-research",
+    "social-media"
+  ],
+  "categories": [
+    "Research & Analysis",
+    "Content Creation",
+    "Marketing"
+  ],
   "requirements": [
     "playwright>=1.40.0",
     "beautifulsoup4>=4.12.0"
@@ -13,9 +25,13 @@
     "properties": {
       "keywords": {
         "type": "array",
-        "items": {"type": "string"},
+        "items": {
+          "type": "string"
+        },
         "description": "Search keywords, e.g., ['一人公司', 'solo 创业', '独立开发者']",
-        "default": ["一人公司"]
+        "default": [
+          "一人公司"
+        ]
       },
       "max_results": {
         "type": "integer",
@@ -30,14 +46,56 @@
         "default": true
       }
     },
-    "required": ["keywords"]
+    "required": [
+      "keywords"
+    ]
   },
   "output_schema": {
     "type": "object",
     "properties": {
-      "total_notes": {"type": "integer"},
-      "sources_created": {"type": "integer"},
-      "insights": {"type": "array", "items": {"type": "string"}}
+      "total_notes": {
+        "type": "integer",
+        "description": "Total number of notes collected"
+      },
+      "sources_created": {
+        "type": "integer",
+        "description": "Number of Sources created in Notebook"
+      },
+      "insights": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "description": "Analysis insights about viral content patterns"
+      },
+      "keywords_searched": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "description": "List of keywords that were searched"
+      }
     }
-  }
+  },
+  "examples": [
+    {
+      "title": "基础调研",
+      "description": "搜索'一人公司'相关内容",
+      "input": {
+        "keywords": ["一人公司"],
+        "max_results": 10
+      }
+    },
+    {
+      "title": "多关键词对比",
+      "description": "同时搜索多个相关话题进行对比分析",
+      "input": {
+        "keywords": ["一人公司", "solo 创业", "轻资产创业"],
+        "max_results": 20
+      }
+    }
+  ],
+  "license": "MIT",
+  "repository": "https://github.com/jackeyunjie/open-notebook",
+  "documentation": "https://github.com/jackeyunjie/open-notebook/tree/main/skills/xiaohongshu_researcher"
 }
