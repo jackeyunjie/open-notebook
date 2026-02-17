@@ -10,7 +10,7 @@ from langgraph.graph.message import add_messages
 from typing_extensions import TypedDict
 
 from open_notebook.ai.provision import provision_langchain_model
-from open_notebook.config import LANGGRAPH_CHECKPOINT_FILE
+from open_notebook.config import LANGGRAPH_CHECKPOINT_FILE, SOURCE_CHAT_MAX_TOKENS
 from open_notebook.domain.notebook import Source, SourceInsight
 from open_notebook.utils import clean_thinking_content
 from open_notebook.utils.async_bridge import await_bridge
@@ -49,7 +49,7 @@ def call_model_with_source_context(
             source_id=source_id,
             include_insights=True,
             include_notes=False,  # Focus on source-specific content
-            max_tokens=50000,  # Reasonable limit for source context
+            max_tokens=SOURCE_CHAT_MAX_TOKENS,  # Configurable limit for source context
         ).build(),
         timeout=30.0,
     )

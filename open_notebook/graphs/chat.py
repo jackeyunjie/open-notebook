@@ -10,7 +10,7 @@ from langgraph.graph.message import add_messages
 from typing_extensions import TypedDict
 
 from open_notebook.ai.provision import provision_langchain_model
-from open_notebook.config import LANGGRAPH_CHECKPOINT_FILE
+from open_notebook.config import DEFAULT_MAX_TOKENS, LANGGRAPH_CHECKPOINT_FILE
 from open_notebook.domain.notebook import Notebook
 from open_notebook.utils import clean_thinking_content
 from open_notebook.utils.async_bridge import await_bridge
@@ -34,7 +34,7 @@ def call_model_with_messages(state: ThreadState, config: RunnableConfig) -> dict
     # Handle async model provisioning from sync context using thread-safe bridge
     model = await_bridge(
         lambda: provision_langchain_model(
-            str(payload), model_id, "chat", max_tokens=8192
+            str(payload), model_id, "chat", max_tokens=DEFAULT_MAX_TOKENS
         ),
         timeout=30.0,
     )
