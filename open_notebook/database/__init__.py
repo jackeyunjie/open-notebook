@@ -50,16 +50,47 @@ from .sync_hooks import (
     reset_sync_registry,
 )
 
+# Sync handlers (Phase 2)
+from .sync_handlers import (
+    CellExecutionSyncHandler,
+    NotebookSyncHandler,
+    SourceSyncHandler,
+    SyncHandler,
+    SyncHandlerRegistry,
+    get_handler_registry,
+    reset_handler_registry,
+)
+
+# Sync initializer (Phase 2)
+from .sync_initializer import (
+    SyncSystem,
+    get_sync_system,
+    initialize_sync_system,
+    reset_sync_system,
+    shutdown_sync_system,
+)
+
+# Repository with events (Phase 2)
+from .repository_with_events import (
+    repo_create,
+    repo_delete,
+    repo_insert,
+    repo_update,
+    repo_upsert,
+)
+
 __all__ = [
     # Legacy SurrealDB repository
     "db_connection",
     "ensure_record_id",
     "parse_record_ids",
+    "repo_query",
+    "repo_relate",
+    
+    # Repository with events (Phase 2 - recommended)
     "repo_create",
     "repo_delete",
     "repo_insert",
-    "repo_query",
-    "repo_relate",
     "repo_update",
     "repo_upsert",
     
@@ -90,4 +121,20 @@ __all__ = [
     "get_sync_registry",
     "on_event",
     "reset_sync_registry",
+    
+    # Sync handlers (Phase 2)
+    "CellExecutionSyncHandler",
+    "NotebookSyncHandler",
+    "SourceSyncHandler",
+    "SyncHandler",
+    "SyncHandlerRegistry",
+    "get_handler_registry",
+    "reset_handler_registry",
+    
+    # Sync initializer (Phase 2)
+    "SyncSystem",
+    "get_sync_system",
+    "initialize_sync_system",
+    "reset_sync_system",
+    "shutdown_sync_system",
 ]
