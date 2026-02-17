@@ -111,21 +111,200 @@ class MultiPlatformAIResearcher:
         keywords: List[str],
         max_results: int = 20
     ) -> List[Dict[str, Any]]:
-        """Collect from Zhihu using web scraping."""
-        # TODO: Implement Zhihu collector
-        # For now, return placeholder
-        logger.info("Zhihu collector - to be implemented")
-        return []
+        """Collect from Zhihu using web scraping.
+        
+        Args:
+            keywords: List of keywords to search
+            max_results: Maximum results per keyword
+            
+        Returns:
+            List of collected items
+        """
+        try:
+            from playwright.async_api import async_playwright
+            
+            all_items = []
+            
+            async with async_playwright() as p:
+                browser = await p.chromium.launch(headless=True)
+                page = await browser.new_page()
+                
+                for keyword in keywords[:5]:  # Limit keywords for Zhihu
+                    logger.info(f"Searching Zhihu for: {keyword}")
+                    
+                    try:
+                        # Navigate to Zhihu search
+                        search_url = f"https://www.zhihu.com/search?q={keyword}&type=content"
+                        await page.goto(search_url, wait_until="networkidle")
+                        await asyncio.sleep(3)
+                        
+                        # Scroll to load more content
+                        for _ in range(3):
+                            await page.evaluate("window.scrollBy(0, window.innerHeight)")
+                            await asyncio.sleep(2)
+                        
+                        # Extract search results - use flexible selectors
+                        result_selectors = [
+                            ".ContentItem-title",
+                            "[data-zop-question]",
+                            "h2.ContentItem-title",
+                            ".SearchResult-Card h2"
+                        ]
+                        
+                        items = []
+                        for selector in result_selectors:
+                            elements = await page.query_selector_all(selector)
+                            if elements:
+                                items = elements
+                                logger.info(f"Found {len(items)} results using selector: {selector}")
+                                break
+                        
+                        for i, item in enumerate(items[:max_results//2]):
+                            try:
+                                title_elem = await item.query_selector("a, h2, .ContentItem-title")
+                                title = await title_elem.inner_text() if title_elem else ""
+                                
+                                # Try to get author
+                                author_elem = await item.query_selector(".UserLink-link, .AuthorInfo-name")
+                                author = await author_elem.inner_text() if author_elem else ""
+                                
+                                # Try to get engagement metrics
+                                vote_elem = await item.query_selector(".VoteButton--up, .ContentItem-action")
+                                votes = await vote_elem.inner_text() if vote_elem else "0"
+                                
+                                # Clean up data
+                                title = title.strip()
+                                if title and len(title) > 10:  # Filter very short titles
+                                    all_items.append({
+                                        'title': title,
+                                        'author': author.strip(),
+                                        'platform': 'zhihu',
+                                        'url': await item.evaluate("el => { const a = el.closest('a'); return a ? a.href : ''; }"),
+                                        'like_count': int(votes.replace(",", "").replace("K", "000").replace("万", "0000")) if votes else 0,
+                                        'collect_count': 0,  # Hard to extract from search results
+                                        'collected_at': datetime.now().isoformat(),
+                                        'content_type': 'answer' if '回答' in title.lower() else 'article'
+                                    })
+                            except Exception as e:
+                                logger.debug(f"Failed to extract Zhihu item: {e}")
+                                continue
+                        
+                    except Exception as e:
+                        logger.error(f"Failed to search '{keyword}' on Zhihu: {e}")
+                        continue
+                
+                await browser.close()
+            
+            logger.info(f"Collected {len(all_items)} items from Zhihu")
+            return all_items
+            
+        except Exception as e:
+            logger.error(f"Zhihu collection failed: {e}")
+            return []
 
     async def _collect_weibo(
         self,
         keywords: List[str],
         max_results: int = 20
     ) -> List[Dict[str, Any]]:
-        """Collect from Weibo using API or scraping."""
-        # TODO: Implement Weibo collector
-        logger.info("Weibo collector - to be implemented")
-        return []
+        """Collect from Weibo using web scraping.
+        
+        Args:
+            keywords: List of keywords to search
+            max_results: Maximum results per keyword
+            
+        Returns:
+            List of collected items
+        """
+        try:
+            from playwright.async_api import async_playwright
+            
+            all_items = []
+            
+            async with async_playwright() as p:
+                browser = await p.chromium.launch(headless=True)
+                page = await browser.new_page()
+                
+                for keyword in keywords[:5]:
+                    logger.info(f"Searching Weibo for: {keyword}")
+                    
+                    try:
+                        # Navigate to Weibo search
+                        search_url = f"https://s.weibo.com/weibo/{keyword}"
+                        await page.goto(search_url, wait_until="networkidle")
+                        await asyncio.sleep(3)
+                        
+                        # Extract weibos
+                        weibo_cards = await page.query_selector_all(".card-wrap")
+                        
+                        for card in weibo_cards[:max_results//2]:
+                            try:
+                                # Get content
+                                content_elem = await card.query_selector(".txt")
+                                content = await content_elem.get_attribute('title') if content_elem else ""
+                                
+                                # Get author
+                                author_elem = await card.query_selector(".name")
+                                author = await author_elem.inner_text() if author_elem else ""
+                                
+                                # Get engagement metrics
+                                actions = []
+                                action_elems = await card.query_selector_all(".line-list li")
+                                for action_elem in action_elems:
+                                    text = await action_elem.inner_text()
+                                    actions.append(text.strip())
+                                
+                                # Parse numbers from actions (likes, reposts, comments)
+                                like_count = 0
+                                collect_count = 0
+                                comment_count = 0
+                                
+                                for action in actions:
+                                    import re
+                                    numbers = re.findall(r'\d+', action)
+                                    if numbers:
+                                        num = int(numbers[0])
+                                        if '赞' in action or 'like' in action.lower():
+                                            like_count = num
+                                        elif '收藏' in action or 'collect' in action.lower():
+                                            collect_count = num
+                                        elif '评论' in action or 'comment' in action.lower():
+                                            comment_count = num
+                                
+                                # Get link
+                                link_elem = await card.query_selector("a[href*='/status/']")
+                                url = await link_elem.get_attribute('href') if link_elem else ""
+                                
+                                if content and len(content) > 10:
+                                    all_items.append({
+                                        'title': content[:100] + "..." if len(content) > 100 else content,
+                                        'content': content,
+                                        'author': author.strip(),
+                                        'platform': 'weibo',
+                                        'url': f"https://weibo.com{url}" if url and url.startswith("/") else url,
+                                        'like_count': like_count,
+                                        'collect_count': collect_count,
+                                        'comment_count': comment_count,
+                                        'collected_at': datetime.now().isoformat(),
+                                        'content_type': 'weibo'
+                                    })
+                                    
+                            except Exception as e:
+                                logger.debug(f"Failed to extract Weibo item: {e}")
+                                continue
+                                
+                    except Exception as e:
+                        logger.error(f"Failed to search '{keyword}' on Weibo: {e}")
+                        continue
+                
+                await browser.close()
+            
+            logger.info(f"Collected {len(all_items)} items from Weibo")
+            return all_items
+            
+        except Exception as e:
+            logger.error(f"Weibo collection failed: {e}")
+            return []
 
     def identify_ai_tools(self, content_items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """Filter and identify AI tools related content.
@@ -253,6 +432,10 @@ class MultiPlatformAIResearcher:
                 - max_results_per_platform: Max results per platform (default: 20)
                 - generate_report: Whether to generate daily report (default: True)
                 - save_to_notebook: Whether to save to notebook (default: True)
+                - sync_to_feishu: Whether to sync to Feishu (default: False)
+                - feishu_webhook: Feishu webhook URL (optional)
+                - feishu_app_id: Feishu app ID (optional)
+                - feishu_app_secret: Feishu app secret (optional)
                 
         Returns:
             Execution results
@@ -262,6 +445,10 @@ class MultiPlatformAIResearcher:
         max_results = params.get('max_results_per_platform', 20)
         generate_report = params.get('generate_report', True)
         save_to_notebook = params.get('save_to_notebook', True)
+        sync_to_feishu = params.get('sync_to_feishu', False)
+        feishu_webhook = params.get('feishu_webhook')
+        feishu_app_id = params.get('feishu_app_id')
+        feishu_app_secret = params.get('feishu_app_secret')
         
         logger.info(f"Starting multi-platform AI tools research...")
         logger.info(f"Platforms: {[self.platforms.get(p, p) for p in platforms]}")
@@ -299,6 +486,15 @@ class MultiPlatformAIResearcher:
             # Save to notebook
             if save_to_notebook:
                 await self.save_report_to_notebook(report)
+            
+            # Sync to Feishu
+            if sync_to_feishu:
+                await self.sync_to_feishu(
+                    report,
+                    webhook_url=feishu_webhook,
+                    app_id=feishu_app_id,
+                    app_secret=feishu_app_secret
+                )
         
         return {
             'total_collected': len(all_content),
@@ -307,6 +503,46 @@ class MultiPlatformAIResearcher:
             'report_generated': report is not None,
             'report': report
         }
+
+    async def sync_to_feishu(
+        self,
+        report: Dict[str, Any],
+        webhook_url: Optional[str] = None,
+        app_id: Optional[str] = None,
+        app_secret: Optional[str] = None
+    ) -> bool:
+        """Sync report to Feishu.
+        
+        Args:
+            report: Daily report
+            webhook_url: Feishu webhook URL
+            app_id: Feishu app ID
+            app_secret: Feishu app secret
+            
+        Returns:
+            True if successful
+        """
+        try:
+            from .feishu_sync import FeishuSyncService
+            
+            service = FeishuSyncService(
+                webhook_url=webhook_url,
+                app_id=app_id,
+                app_secret=app_secret
+            )
+            
+            success = await service.send_daily_report(report)
+            
+            if success:
+                logger.info("Successfully synced report to Feishu")
+                return True
+            else:
+                logger.warning("Failed to sync report to Feishu")
+                return False
+                
+        except Exception as e:
+            logger.error(f"Feishu sync failed: {e}")
+            return False
 
     async def save_report_to_notebook(self, report: Dict[str, Any]) -> int:
         """Save daily report to Notebook.

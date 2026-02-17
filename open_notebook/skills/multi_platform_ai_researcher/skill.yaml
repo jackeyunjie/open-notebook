@@ -64,6 +64,24 @@
         "type": "boolean",
         "description": "Whether to export report as Markdown file",
         "default": false
+      },
+      "sync_to_feishu": {
+        "type": "boolean",
+        "description": "Whether to sync report to Feishu (Lark)",
+        "default": false
+      },
+      "feishu_webhook": {
+        "type": "string",
+        "description": "Feishu bot webhook URL",
+        "format": "uri"
+      },
+      "feishu_app_id": {
+        "type": "string",
+        "description": "Feishu app ID for advanced API access"
+      },
+      "feishu_app_secret": {
+        "type": "string",
+        "description": "Feishu app secret for authentication"
       }
     },
     "required": []
