@@ -72,9 +72,15 @@ class MultiPlatformAIResearcher:
             return await self._collect_zhihu(keywords, max_results)
         elif platform == 'weibo':
             return await self._collect_weibo(keywords, max_results)
-        # Add more platform collectors as needed
-        
-        return []
+        elif platform == 'video_account':
+            return await self._collect_video_account(keywords, max_results)
+        elif platform == 'official_account':
+            return await self._collect_official_account(keywords, max_results)
+        elif platform == 'douyin':
+            return await self._collect_douyin(keywords, max_results)
+        else:
+            logger.warning(f"Unknown platform: {platform}")
+            return []
 
     async def _collect_xiaohongshu(
         self, 
@@ -200,6 +206,287 @@ class MultiPlatformAIResearcher:
             
         except Exception as e:
             logger.error(f"Zhihu collection failed: {e}")
+            return []
+
+    async def _collect_video_account(
+        self,
+        keywords: List[str],
+        max_results: int = 20
+    ) -> List[Dict[str, Any]]:
+        """Collect from WeChat Video Account (Channels).
+        
+        Note: This requires WeChat automation which is complex.
+        Using web search as alternative approach.
+        
+        Args:
+            keywords: List of keywords to search
+            max_results: Maximum results per keyword
+            
+        Returns:
+            List of collected items
+        """
+        try:
+            from playwright.async_api import async_playwright
+            
+            all_items = []
+            
+            async with async_playwright() as p:
+                browser = await p.chromium.launch(headless=True)
+                page = await browser.new_page()
+                
+                for keyword in keywords[:3]:  # Limit keywords
+                    logger.info(f"Searching Video Account for: {keyword}")
+                    
+                    try:
+                        # Use Bing search to find video account content
+                        # (Direct video account scraping is very difficult)
+                        search_url = f"https://www.bing.com/search?q=site%3Achannels.weixin.qq.com+{keyword}"
+                        await page.goto(search_url, wait_until="networkidle")
+                        await asyncio.sleep(3)
+                        
+                        # Extract search results
+                        results = await page.query_selector_all("li.b_algo")
+                        
+                        for result in results[:max_results//3]:
+                            try:
+                                title_elem = await result.query_selector("h2 a")
+                                title = await title_elem.inner_text() if title_elem else ""
+                                
+                                link_elem = await result.query_selector("h2 a")
+                                url = await link_elem.get_attribute("href") if link_elem else ""
+                                
+                                # Only collect if it's a video account link
+                                if url and "channels.weixin.qq.com" in url:
+                                    # Try to get snippet/description
+                                    snippet_elem = await result.query_selector(".b_caption p")
+                                    snippet = await snippet_elem.inner_text() if snippet_elem else ""
+                                    
+                                    all_items.append({
+                                        'title': title.strip(),
+                                        'content': snippet.strip(),
+                                        'platform': 'video_account',
+                                        'url': url,
+                                        'like_count': 0,  # Hard to extract from search
+                                        'collect_count': 0,
+                                        'collected_at': datetime.now().isoformat(),
+                                        'content_type': 'video'
+                                    })
+                            except Exception as e:
+                                logger.debug(f"Failed to extract video account item: {e}")
+                                continue
+                                
+                    except Exception as e:
+                        logger.error(f"Failed to search '{keyword}' for Video Account: {e}")
+                        continue
+                
+                await browser.close()
+            
+            logger.info(f"Collected {len(all_items)} items from Video Account (via search)")
+            return all_items
+            
+        except Exception as e:
+            logger.error(f"Video Account collection failed: {e}")
+            return []
+
+    async def _collect_official_account(
+        self,
+        keywords: List[str],
+        max_results: int = 20
+    ) -> List[Dict[str, Any]]:
+        """Collect from WeChat Official Accounts.
+        
+        Uses Sougou WeChat search or general web search.
+        
+        Args:
+            keywords: List of keywords to search
+            max_results: Maximum results per keyword
+            
+        Returns:
+            List of collected items
+        """
+        try:
+            from playwright.async_api import async_playwright
+            
+            all_items = []
+            
+            async with async_playwright() as p:
+                browser = await p.chromium.launch(headless=True)
+                page = await browser.new_page()
+                
+                for keyword in keywords[:3]:
+                    logger.info(f"Searching Official Account for: {keyword}")
+                    
+                    try:
+                        # Use Sougou WeChat search (weixin.sogou.com)
+                        search_url = f"https://weixin.sogou.com/weixin?type=2&query={keyword}"
+                        await page.goto(search_url, wait_until="networkidle")
+                        await asyncio.sleep(3)
+                        
+                        # Handle anti-crawling (may need verification code)
+                        # Extract articles
+                        articles = await page.query_selector_all("ul.news-list li")
+                        
+                        for article in articles[:max_results//3]:
+                            try:
+                                # Get title
+                                title_elem = await article.query_selector("h3 a")
+                                title = await title_elem.inner_text() if title_elem else ""
+                                
+                                # Get link
+                                link_elem = await article.query_selector("h3 a")
+                                url = await link_elem.get_attribute("href") if link_elem else ""
+                                
+                                # Get official account name
+                                account_elem = await article.query_selector(".s-box-txt a")
+                                account = await account_elem.inner_text() if account_elem else ""
+                                
+                                # Get snippet
+                                snippet_elem = await article.query_selector(".txt-info")
+                                snippet = await snippet_elem.inner_text() if snippet_elem else ""
+                                
+                                # Get date
+                                date_elem = await article.query_selector(".s-f")
+                                date_str = await date_elem.inner_text() if date_elem else ""
+                                
+                                if title and len(title) > 5:
+                                    all_items.append({
+                                        'title': title.strip(),
+                                        'content': snippet.strip(),
+                                        'author': account.strip(),
+                                        'platform': 'official_account',
+                                        'url': url,
+                                        'like_count': 0,
+                                        'collect_count': 0,
+                                        'collected_at': datetime.now().isoformat(),
+                                        'content_type': 'article',
+                                        'publish_date': date_str.strip()
+                                    })
+                            except Exception as e:
+                                logger.debug(f"Failed to extract official account item: {e}")
+                                continue
+                                
+                    except Exception as e:
+                        logger.error(f"Failed to search '{keyword}' for Official Account: {e}")
+                        continue
+                
+                await browser.close()
+            
+            logger.info(f"Collected {len(all_items)} items from Official Account")
+            return all_items
+            
+        except Exception as e:
+            logger.error(f"Official Account collection failed: {e}")
+            return []
+
+    async def _collect_douyin(
+        self,
+        keywords: List[str],
+        max_results: int = 20
+    ) -> List[Dict[str, Any]]:
+        """Collect from Douyin.
+        
+        Note: Douyin has strong anti-crawling. Using web search approach.
+        
+        Args:
+            keywords: List of keywords to search
+            max_results: Maximum results per keyword
+            
+        Returns:
+            List of collected items
+        """
+        try:
+            from playwright.async_api import async_playwright
+            
+            all_items = []
+            
+            async with async_playwright() as p:
+                browser = await p.chromium.launch(headless=True)
+                page = await browser.new_page()
+                
+                for keyword in keywords[:3]:
+                    logger.info(f"Searching Douyin for: {keyword}")
+                    
+                    try:
+                        # Use Douyin web version search
+                        search_url = f"https://www.douyin.com/search/{keyword}"
+                        await page.goto(search_url, wait_until="networkidle")
+                        await asyncio.sleep(5)  # Douyin loads slowly
+                        
+                        # Scroll to load more
+                        for _ in range(3):
+                            await page.evaluate("window.scrollBy(0, window.innerHeight)")
+                            await asyncio.sleep(2)
+                        
+                        # Try to extract video cards (selectors may change)
+                        video_selectors = [
+                            "[data-e2e='feed-card']",
+                            ".DouyinNewCard-Footer",
+                            "[class*='video-card']"
+                        ]
+                        
+                        videos = []
+                        for selector in video_selectors:
+                            elements = await page.query_selector_all(selector)
+                            if elements:
+                                videos = elements
+                                logger.info(f"Found {len(elements)} videos using: {selector}")
+                                break
+                        
+                        for video in videos[:max_results//3]:
+                            try:
+                                # Get title/description
+                                desc_elem = await video.query_selector("[data-e2e='feed-card-desc'], h3, p")
+                                description = await desc_elem.inner_text() if desc_elem else ""
+                                
+                                # Get author
+                                author_elem = await video.query_selector("[data-e2e='feed-card-author'], .user-name")
+                                author = await author_elem.inner_text() if author_elem else ""
+                                
+                                # Get engagement (likes, comments, shares)
+                                like_elem = await video.query_selector("[data-e2e='feed-card-like'] span")
+                                like_text = await like_elem.inner_text() if like_elem else "0"
+                                
+                                # Parse like count
+                                like_count = 0
+                                if like_text:
+                                    import re
+                                    numbers = re.findall(r'\d+', like_text)
+                                    if numbers:
+                                        like_count = int(numbers[0])
+                                        if '万' in like_text:
+                                            like_count *= 10000
+                                
+                                # Get video link
+                                link_elem = await video.query_selector("a[href*='/video/']")
+                                video_url = await link_elem.get_attribute("href") if link_elem else ""
+                                
+                                if description and len(description) > 10:
+                                    all_items.append({
+                                        'title': description[:100] + "..." if len(description) > 100 else description,
+                                        'content': description,
+                                        'author': author.strip(),
+                                        'platform': 'douyin',
+                                        'url': f"https://www.douyin.com{video_url}" if video_url and video_url.startswith("/") else video_url,
+                                        'like_count': like_count,
+                                        'collect_count': 0,
+                                        'collected_at': datetime.now().isoformat(),
+                                        'content_type': 'video'
+                                    })
+                            except Exception as e:
+                                logger.debug(f"Failed to extract Douyin item: {e}")
+                                continue
+                                
+                    except Exception as e:
+                        logger.error(f"Failed to search '{keyword}' on Douyin: {e}")
+                        continue
+                
+                await browser.close()
+            
+            logger.info(f"Collected {len(all_items)} items from Douyin")
+            return all_items
+            
+        except Exception as e:
+            logger.error(f"Douyin collection failed: {e}")
             return []
 
     async def _collect_weibo(
