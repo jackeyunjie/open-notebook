@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OPC Activity Monitor</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      width: 380px;
+      min-height: 500px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f5f5f7;
+      color: #1d1d1f;
+    }
+
+    .header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 20px;
+      text-align: center;
+    }
+
+    .header h1 {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+
+    .header .subtitle {
+      font-size: 12px;
+      opacity: 0.9;
+    }
+
+    .status-bar {
+      display: flex;
+      justify-content: center;
+      gap: 15px;
+      padding: 12px;
+      background: white;
+      border-bottom: 1px solid #e5e5e5;
+    }
+
+    .status-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: #666;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #34c759;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    .main-content {
+      padding: 16px;
+    }
+
+    .card {
+      background: white;
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 12px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    .card-title {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 12px;
+      color: #333;
+    }
+
+    /* Current Activity */
+    .current-activity {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .activity-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      background: #f0f0f5;
+    }
+
+    .activity-icon.writing { background: #e3f2fd; }
+    .activity-icon.design { background: #f3e5f5; }
+    .activity-icon.coding { background: #e8f5e9; }
+    .activity-icon.research { background: #fff3e0; }
+    .activity-icon.social { background: #fce4ec; }
+
+    .activity-info {
+      flex: 1;
+    }
+
+    .activity-domain {
+      font-size: 14px;
+      font-weight: 500;
+      color: #333;
+      margin-bottom: 4px;
+    }
+
+    .activity-duration {
+      font-size: 12px;
+      color: #666;
+    }
+
+    /* Stats Grid */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+    }
+
+    .stat-item {
+      text-align: center;
+      padding: 12px;
+      background: #f8f9fa;
+      border-radius: 8px;
+    }
+
+    .stat-value {
+      font-size: 24px;
+      font-weight: 700;
+      color: #667eea;
+      margin-bottom: 4px;
+    }
+
+    .stat-label {
+      font-size: 11px;
+      color: #666;
+    }
+
+    /* Category Breakdown */
+    .category-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .category-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .category-bar-bg {
+      flex: 1;
+      height: 8px;
+      background: #f0f0f5;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .category-bar-fill {
+      height: 100%;
+      border-radius: 4px;
+      transition: width 0.3s ease;
+    }
+
+    .category-name {
+      font-size: 12px;
+      width: 80px;
+      color: #666;
+    }
+
+    .category-time {
+      font-size: 12px;
+      width: 50px;
+      text-align: right;
+      color: #333;
+      font-weight: 500;
+    }
+
+    /* Top Sites */
+    .sites-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .site-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 12px;
+      background: #f8f9fa;
+      border-radius: 8px;
+      font-size: 12px;
+    }
+
+    .site-domain {
+      color: #333;
+      font-weight: 500;
+    }
+
+    .site-time {
+      color: #667eea;
+      font-weight: 600;
+    }
+
+    /* Insights */
+    .insight-item {
+      padding: 12px;
+      background: #f0f7ff;
+      border-radius: 8px;
+      border-left: 3px solid #667eea;
+      margin-bottom: 8px;
+    }
+
+    .insight-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: #333;
+      margin-bottom: 4px;
+    }
+
+    .insight-text {
+      font-size: 11px;
+      color: #666;
+      line-height: 1.5;
+    }
+
+    /* Footer */
+    .footer {
+      padding: 12px 16px;
+      text-align: center;
+      font-size: 11px;
+      color: #999;
+    }
+
+    .footer a {
+      color: #667eea;
+      text-decoration: none;
+    }
+
+    /* Empty State */
+    .empty-state {
+      text-align: center;
+      padding: 40px 20px;
+      color: #999;
+    }
+
+    .empty-state-icon {
+      font-size: 48px;
+      margin-bottom: 12px;
+    }
+
+    .empty-state-text {
+      font-size: 14px;
+    }
+
+    /* Loading */
+    .loading {
+      text-align: center;
+      padding: 40px;
+    }
+
+    .spinner {
+      width: 32px;
+      height: 32px;
+      border: 3px solid #f3f3f3;
+      border-top: 3px solid #667eea;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 12px;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>OPC Activity Monitor</h1>
+    <div class="subtitle">理解你的数字行为模式</div>
+  </div>
+
+  <div class="status-bar">
+    <div class="status-item">
+      <div class="status-dot"></div>
+      <span>正在记录</span>
+    </div>
+    <div class="status-item">
+      <span id="sync-status">本地存储</span>
+    </div>
+  </div>
+
+  <div class="main-content">
+    <!-- Current Activity -->
+    <div class="card">
+      <div class="card-title">当前活动</div>
+      <div id="current-activity">
+        <div class="loading">
+          <div class="spinner"></div>
+          <div>加载中...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Today's Stats -->
+    <div class="card">
+      <div class="card-title">今日概览</div>
+      <div class="stats-grid">
+        <div class="stat-item">
+          <div class="stat-value" id="total-time">0h</div>
+          <div class="stat-label">总时长</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-value" id="activity-count">0</div>
+          <div class="stat-label">活动数</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-value" id="focus-time">0h</div>
+          <div class="stat-label">专注时长</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-value" id="switch-count">0</div>
+          <div class="stat-label">切换次数</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Category Breakdown -->
+    <div class="card">
+      <div class="card-title">时间分布</div>
+      <div class="category-list" id="category-breakdown">
+        <!-- Dynamic content -->
+      </div>
+    </div>
+
+    <!-- Top Sites -->
+    <div class="card">
+      <div class="card-title">常用网站</div>
+      <div class="sites-list" id="top-sites">
+        <!-- Dynamic content -->
+      </div>
+    </div>
+
+    <!-- AI Insights -->
+    <div class="card">
+      <div class="card-title">今日洞察</div>
+      <div id="insights">
+        <div class="insight-item">
+          <div class="insight-title">开始记录</div>
+          <div class="insight-text">使用浏览器一段时间后，这里会显示你的行为模式和效率建议。</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    数据仅存储在本地 | <a href="http://localhost:3000" target="_blank">打开OPC</a>
+  </div>
+
+  <script src="dashboard.js"></script>
+</body>
+</html>

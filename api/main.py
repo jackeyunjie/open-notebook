@@ -13,6 +13,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from api.auth import PasswordAuthMiddleware
 from api.routers import (
+    activity,
     auth,
     chat,
     config,
@@ -25,7 +26,12 @@ from api.routers import (
     models,
     notebooks,
     notes,
+    p0_scheduler,
+    p3_evolution,
+    personal_ip,
+    platform_accounts,
     podcasts,
+    publish,
     search,
     settings,
     source_chat,
@@ -118,6 +124,29 @@ async def lifespan(app: FastAPI):
         logger.error(f"Failed to start skill scheduler: {e}")
         # Don't fail startup, but log error
 
+    # Initialize P0 Daily Sync Scheduler (optional auto-start)
+    try:
+        from open_notebook.skills import p0_sync_scheduler, setup_default_p0_schedule
+        import os
+
+        # Check if auto-start is enabled via environment variable
+        p0_auto_start = os.getenv("P0_DAILY_SYNC_AUTO_START", "false").lower() == "true"
+        p0_sync_time = os.getenv("P0_DAILY_SYNC_TIME", "06:00")
+        p0_notebook_id = os.getenv("P0_DAILY_SYNC_NOTEBOOK_ID", "")
+
+        if p0_auto_start:
+            runner = SkillRunner()
+            success = await setup_default_p0_schedule(runner, p0_sync_time, p0_notebook_id)
+            if success:
+                logger.success(f"P0 Daily Sync auto-started (schedule: {p0_sync_time})")
+            else:
+                logger.warning("Failed to auto-start P0 Daily Sync")
+        else:
+            logger.info("P0 Daily Sync auto-start disabled (set P0_DAILY_SYNC_AUTO_START=true to enable)")
+    except Exception as e:
+        logger.error(f"Failed to initialize P0 Daily Sync: {e}")
+        # Don't fail startup
+
     logger.success("API initialization completed successfully")
 
     # Yield control to the application
@@ -130,6 +159,14 @@ async def lifespan(app: FastAPI):
         logger.info("Skill scheduler shut down")
     except Exception as e:
         logger.error(f"Error shutting down skill scheduler: {e}")
+
+    # Shutdown P0 Daily Sync Scheduler
+    try:
+        from open_notebook.skills import p0_sync_scheduler
+        await p0_sync_scheduler.stop()
+        logger.info("P0 Daily Sync scheduler stopped")
+    except Exception as e:
+        logger.error(f"Error stopping P0 scheduler: {e}")
 
     logger.info("API shutdown complete")
 
@@ -219,6 +256,12 @@ app.include_router(skills.router, prefix="/api", tags=["skills"])
 app.include_router(workflows.router, prefix="/api", tags=["workflows"])
 app.include_router(workflow_templates.router, prefix="/api", tags=["workflow-templates"])
 app.include_router(workflow_builder.router, prefix="/api", tags=["workflow-builder"])
+app.include_router(p0_scheduler.router, prefix="/api", tags=["p0-scheduler"])
+app.include_router(p3_evolution.router, prefix="/api", tags=["p3-evolution"])
+app.include_router(personal_ip.router, prefix="/api", tags=["personal-ip"])
+app.include_router(platform_accounts.router, prefix="/api", tags=["platform-accounts"])
+app.include_router(publish.router, prefix="/api", tags=["publish"])
+app.include_router(activity.router, prefix="/api/v1", tags=["activity"])
 
 
 @app.get("/")
