@@ -13,10 +13,12 @@ services:
     pull_policy: always
 
   open_notebook:
-    image: lfnovo/open_notebook:v1-latest
+    build:
+      context: .
+      dockerfile: Dockerfile
     ports:
       - "8502:8502"  # Web UI
-      - "5055:5055"  # REST API
+      - "5055:5055"  # Unified REST API (Main + LKS)
     environment:
       # REQUIRED: Change this to your own secret string
       # This encrypts your API keys in the database
@@ -28,6 +30,13 @@ services:
       - SURREAL_PASSWORD=root
       - SURREAL_NAMESPACE=open_notebook
       - SURREAL_DATABASE=open_notebook
+
+      # Living Knowledge System Database (PostgreSQL)
+      - LIVING_DB_HOST=living_postgres
+      - LIVING_DB_PORT=5432
+      - LIVING_DB_NAME=living_system
+      - LIVING_DB_USER=living
+      - LIVING_DB_PASSWORD=living
 
       # AI Provider API Keys (auto-initialized on startup)
       # DeepSeek - https://platform.deepseek.com
@@ -54,5 +63,20 @@ services:
                /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf"
     depends_on:
       - surrealdb
+      - living_postgres
     restart: always
     pull_policy: always
+
+  # Living Knowledge System PostgreSQL Database
+  living_postgres:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_USER=living
+      - POSTGRES_PASSWORD=living
+      - POSTGRES_DB=living_system
+    ports:
+      - "5433:5432"  # Exposed on host port 5433 to avoid conflicts
+    volumes:
+      - ./living_postgres_data:/var/lib/postgresql/data
+      - ./init-scripts:/docker-entrypoint-initdb.d
+    restart: always
