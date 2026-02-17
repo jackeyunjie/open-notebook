@@ -90,7 +90,8 @@ from open_notebook.skills.p3_scheduler import (
     p3_evolution_scheduler,
     setup_default_p3_schedule,
 )
-from open_notebook.skills.xiaohongshu_researcher import XiaohongshuResearcherSkill, research_xiaohongshu
+# Note: xiaohongshu_researcher is loaded lazily to avoid circular dependency
+# from open_notebook.skills.xiaohongshu_researcher import XiaohongshuResearcherSkill, research_xiaohongshu
 
 __all__ = [
     "Skill",
@@ -183,7 +184,18 @@ __all__ = [
     "EvolutionScheduleType",
     "p3_evolution_scheduler",
     "setup_default_p3_schedule",
-    # Xiaohongshu researcher skill
-    "XiaohongshuResearcherSkill",
-    "research_xiaohongshu",
+    # Xiaohongshu researcher skill (lazy loaded)
+    # "XiaohongshuResearcherSkill",
+    # "research_xiaohongshu",
 ]
+
+
+def __getattr__(name):
+    """Lazy loading of xiaohongshu_researcher to avoid circular dependency."""
+    if name in ("XiaohongshuResearcherSkill", "research_xiaohongshu"):
+        from open_notebook.skills.xiaohongshu_researcher import (
+            XiaohongshuResearcherSkill,
+            research_xiaohongshu,
+        )
+        return locals()[name]
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

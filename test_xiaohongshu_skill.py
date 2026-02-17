@@ -13,12 +13,11 @@ async def main():
     result = await research_xiaohongshu(
         keywords=["一人公司"],
         max_results=5,  # Small sample for testing
-        save_to_notebook=True
+        save_to_notebook=False  # Don't save for standalone test
     )
     
     print("\n✅ 研究完成！")
     print(f"📊 收集笔记数：{result['total_notes']}")
-    print(f"💾 创建 Source 数：{result['sources_created']}")
     print(f"💡 洞察发现:")
     for i, insight in enumerate(result["insights"], 1):
         print(f"   {i}. {insight}")
