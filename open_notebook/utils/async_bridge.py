@@ -10,7 +10,7 @@ functions like model provisioning.
 
 import asyncio
 import concurrent.futures
-from typing import Any, Callable, TypeVar
+from typing import Any, Callable, Coroutine, TypeVar
 
 from loguru import logger
 
@@ -59,7 +59,7 @@ def shutdown_bridge_executor(wait: bool = True) -> None:
         logger.debug("Shutdown async bridge thread pool")
 
 
-def _run_coroutine_in_new_loop(coro: Callable[[], asyncio.Coroutine[Any, Any, T]]) -> T:
+def _run_coroutine_in_new_loop(coro: Callable[[], Coroutine[Any, Any, T]]) -> T:
     """
     Run a coroutine in a new event loop within the current thread.
 
@@ -94,7 +94,7 @@ def _run_coroutine_in_new_loop(coro: Callable[[], asyncio.Coroutine[Any, Any, T]
 
 
 def await_bridge(
-    coro_factory: Callable[[], asyncio.Coroutine[Any, Any, T]],
+    coro_factory: Callable[[], Coroutine[Any, Any, T]],
     *,
     timeout: float | None = 30.0,
 ) -> T:
@@ -149,7 +149,7 @@ def await_bridge(
 
 
 def await_bridge_simple(
-    coro: asyncio.Coroutine[Any, Any, T],
+    coro: Coroutine[Any, Any, T],
     *,
     timeout: float | None = 30.0,
 ) -> T:
