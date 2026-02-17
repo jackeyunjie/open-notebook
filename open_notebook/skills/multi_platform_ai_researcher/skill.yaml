@@ -1,0 +1,188 @@
+{
+  "name": "multi-platform-ai-tools-researcher",
+  "version": "1.0.0",
+  "description": "Automatically collect and analyze AI tools information from multiple Chinese social media platforms (Xiaohongshu, Zhihu, Weibo, etc.) for solopreneurs.",
+  "author": "Open Notebook Team",
+  "tags": [
+    "research",
+    "ai-tools",
+    "multi-platform",
+    "content-analysis",
+    "automation",
+    "market-research",
+    "social-media",
+    "daily-report"
+  ],
+  "categories": [
+    "Research & Analysis",
+    "Content Creation",
+    "Marketing",
+    "Productivity"
+  ],
+  "requirements": [
+    "playwright>=1.40.0",
+    "beautifulsoup4>=4.12.0"
+  ],
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "platforms": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "enum": ["xiaohongshu", "zhihu", "weibo", "video_account", "official_account", "douyin"]
+        },
+        "description": "Platforms to search (default: all supported)",
+        "default": ["xiaohongshu"]
+      },
+      "keywords": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "description": "Search keywords about AI tools for solopreneurs",
+        "default": ["一人公司 AI 工具", "solo 创业 AI", "AI 效率工具", "AIGC 工具"]
+      },
+      "max_results_per_platform": {
+        "type": "integer",
+        "description": "Maximum results per platform",
+        "default": 20,
+        "minimum": 1,
+        "maximum": 100
+      },
+      "generate_report": {
+        "type": "boolean",
+        "description": "Whether to generate daily research report",
+        "default": true
+      },
+      "save_to_notebook": {
+        "type": "boolean",
+        "description": "Whether to save results to Notebook",
+        "default": true
+      },
+      "export_markdown": {
+        "type": "boolean",
+        "description": "Whether to export report as Markdown file",
+        "default": false
+      }
+    },
+    "required": []
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "total_collected": {
+        "type": "integer",
+        "description": "Total number of items collected"
+      },
+      "ai_tools_related": {
+        "type": "integer",
+        "description": "Number of AI tools related items"
+      },
+      "platforms_searched": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "description": "List of platforms that were searched"
+      },
+      "report_generated": {
+        "type": "boolean",
+        "description": "Whether a daily report was generated"
+      },
+      "report": {
+        "type": "object",
+        "description": "Daily research report with insights",
+        "properties": {
+          "title": {"type": "string"},
+          "date": {"type": "string"},
+          "summary": {
+            "type": "object",
+            "properties": {
+              "total_items": {"type": "integer"},
+              "platforms_covered": {"type": "integer"},
+              "total_engagement": {"type": "integer"}
+            }
+          },
+          "trending_tools": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "tool_name": {"type": "string"},
+                "mention_count": {"type": "integer"}
+              }
+            }
+          },
+          "hot_topics": {
+            "type": "array",
+            "items": {"type": "string"}
+          },
+          "insights": {
+            "type": "array",
+            "items": {"type": "string"}
+          }
+        }
+      }
+    }
+  },
+  "examples": [
+    {
+      "title": "基础调研 - 小红书单平台",
+      "description": "仅在小红书上搜索一人公司 AI 工具相关内容",
+      "input": {
+        "platforms": ["xiaohongshu"],
+        "keywords": ["一人公司 AI 工具", "AI 效率工具"],
+        "max_results_per_platform": 20,
+        "generate_report": true,
+        "save_to_notebook": true
+      },
+      "output_example": {
+        "total_collected": 15,
+        "ai_tools_related": 12,
+        "platforms_searched": ["小红书"],
+        "report_generated": true,
+        "report": {
+          "trending_tools": [
+            {"tool_name": "ChatGPT", "mention_count": 8},
+            {"tool_name": "Notion AI", "mention_count": 5}
+          ],
+          "insights": ["发现 3 篇高互动内容，建议深入分析"]
+        }
+      }
+    },
+    {
+      "title": "多平台对比研究",
+      "description": "同时搜索多个平台进行对比分析",
+      "input": {
+        "platforms": ["xiaohongshu", "zhihu", "weibo"],
+        "keywords": [
+          "ChatGPT 一人公司",
+          "AI 工具推荐",
+          "AIGC 创业"
+        ],
+        "max_results_per_platform": 30,
+        "generate_report": true,
+        "save_to_notebook": true
+      }
+    },
+    {
+      "title": "自定义关键词深度研究",
+      "description": "使用特定关键词进行深度信息搜集",
+      "input": {
+        "platforms": ["xiaohongshu"],
+        "keywords": [
+          "Midjourney 商用案例",
+          "Stable Diffusion 教程",
+          "Notion AI 实战"
+        ],
+        "max_results_per_platform": 50,
+        "generate_report": true,
+        "export_markdown": true
+      }
+    }
+  ],
+  "license": "MIT",
+  "repository": "https://github.com/jackeyunjie/open-notebook",
+  "documentation": "https://github.com/jackeyunjie/open-notebook/tree/main/open_notebook/skills"
+}
