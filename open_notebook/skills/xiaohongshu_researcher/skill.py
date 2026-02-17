@@ -75,8 +75,32 @@ class XiaohongshuResearcherSkill:
                 await self.page.evaluate("window.scrollBy(0, window.innerHeight)")
                 await asyncio.sleep(2)
             
-            # Extract note cards
-            note_cards = await self.page.query_selector_all(".note-item")
+            # Extract note cards with multiple selector strategies
+            selectors_to_try = [
+                ".note-item",                    # Original selector
+                "[data-type='note']",            # Data attribute selector
+                ".search-result-item",           # Search result item
+                "article[role='article']",       # Semantic article tag
+                ".note-card",                    # Card-style selector
+                "div[class*='note']",            # Partial class match
+            ]
+            
+            note_cards = []
+            for selector in selectors_to_try:
+                try:
+                    note_cards = await self.page.query_selector_all(selector)
+                    if note_cards:
+                        logger.info(f"Found {len(note_cards)} note cards using selector: {selector}")
+                        break
+                except Exception as e:
+                    logger.debug(f"Selector '{selector}' failed: {e}")
+                    continue
+            
+            if not note_cards:
+                # Fallback: try to find any clickable content items
+                logger.warning("No standard selectors matched, trying generic content containers...")
+                note_cards = await self.page.query_selector_all("div[class*='content'], div[class*='item']")
+                logger.info(f"Found {len(note_cards)} potential content items with generic selectors")
             
             logger.info(f"Found {len(note_cards)} note cards")
             
@@ -105,28 +129,79 @@ class XiaohongshuResearcherSkill:
             Dictionary with note data or None if extraction fails
         """
         try:
-            # Extract title
-            title_elem = await card_element.query_selector(".title")
-            title = await title_elem.inner_text() if title_elem else ""
+            # Extract title with multiple strategies
+            title_selectors = [".title", "h3", "[class*='title']", "[data-type='title']"]
+            title = ""
+            for selector in title_selectors:
+                title_elem = await card_element.query_selector(selector)
+                if title_elem:
+                    title = await title_elem.inner_text()
+                    if title:
+                        break
             
-            # Extract author
-            author_elem = await card_element.query_selector(".nickname")
-            author = await author_elem.inner_text() if author_elem else ""
+            # Extract author with multiple strategies
+            author_selectors = [".nickname", "[class*='author']", "[class*='user']", "[data-type='author']"]
+            author = ""
+            for selector in author_selectors:
+                author_elem = await card_element.query_selector(selector)
+                if author_elem:
+                    author = await author_elem.inner_text()
+                    if author:
+                        break
             
-            # Extract engagement metrics
-            like_elem = await card_element.query_selector(".icon-container >> text=👍")
-            like_count = await like_elem.inner_text() if like_elem else "0"
+            # Extract engagement metrics - use flexible selectors
+            like_count = "0"
+            collect_count = "0"
             
-            collect_elem = await card_element.query_selector(".icon-container >> text=⭐")
-            collect_count = await collect_elem.inner_text() if collect_elem else "0"
+            # Strategy 1: Look for icons with text content
+            icon_containers = await card_element.query_selector_all("[class*='icon'], [class*='interaction'], [class*='engage']")
+            for container in icon_containers:
+                container_text = await container.inner_text()
+                if container_text:
+                    # Try to extract numbers from the text
+                    import re
+                    numbers = re.findall(r'\d+', container_text)
+                    if numbers:
+                        if '👍' in container_text or 'like' in container_text.lower():
+                            like_count = numbers[0]
+                        elif '⭐' in container_text or 'collect' in container_text.lower() or 'star' in container_text.lower():
+                            collect_count = numbers[0]
             
-            # Extract link
-            link_elem = await card_element.query_selector("a.cover")
-            link = await link_elem.get_attribute("href") if link_elem else ""
+            # Strategy 2: Fallback - look for any number-like text near icons
+            if like_count == "0" or collect_count == "0":
+                all_numbers = await card_element.query_selector_all("span, div")
+                for elem in all_numbers:
+                    text = await elem.inner_text()
+                    if text and any(c.isdigit() for c in text):
+                        import re
+                        numbers = re.findall(r'\d+', text)
+                        if numbers:
+                            parent_class = await elem.evaluate("el => el.parentElement.className")
+                            if 'like' in parent_class.lower() or '👍' in text:
+                                like_count = numbers[0]
+                            elif 'collect' in parent_class.lower() or 'star' in parent_class.lower() or '⭐' in text:
+                                collect_count = numbers[0]
+            
+            # Extract link with multiple strategies
+            link_selectors = ["a.cover", "a[href*='/explore/']", "a[href*='/discovery/']", "[role='link']"]
+            link = ""
+            for selector in link_selectors:
+                link_elem = await card_element.query_selector(selector)
+                if link_elem:
+                    link = await link_elem.get_attribute("href")
+                    if link:
+                        break
+            
+            # If still no link, try to get it from the card itself
+            if not link:
+                link = await card_element.evaluate("""el => {
+                    const anchor = el.closest('a');
+                    return anchor ? anchor.href : '';
+                }""")
             
             # Clean up counts (remove commas, convert to int)
-            like_count = int(like_count.replace(",", "").replace("万", "0000"))
-            collect_count = int(collect_count.replace(",", "").replace("万", "0000"))
+            like_count = int(like_count.replace(",", "").replace("万", "0000")) if like_count else 0
+            collect_count = int(collect_count.replace(",", "").replace("万", "0000")) if collect_count else 0
             
             return {
                 "title": title.strip(),
