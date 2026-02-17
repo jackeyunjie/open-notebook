@@ -6,9 +6,9 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
 # Install system dependencies required for building certain Python packages
 # Add Node.js 20.x LTS for building frontend
-# NOTE: gcc/g++/make removed - uv should download pre-built wheels. Add back if build fails.
-# NOTE: gcc/g++/make required for some python dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
+# Use Tsinghua mirror for faster download in China
+RUN sed -i 's/deb.debian.org/mirrors.tuna.tsinghua.edu.cn/g' /etc/apt/sources.list.d/debian.sources && \
+    apt-get update && apt-get install -y --no-install-recommends \
     curl \
     build-essential \
     && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
@@ -52,7 +52,9 @@ FROM python:3.12-slim-bookworm AS runtime
 
 # Install Chrome and dependencies for browser-use
 # Chrome is required for AI-driven browser automation
-RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
+# Use Tsinghua mirror for faster download in China
+RUN sed -i 's/deb.debian.org/mirrors.tuna.tsinghua.edu.cn/g' /etc/apt/sources.list.d/debian.sources && \
+    apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
     ffmpeg \
     supervisor \
     curl \
@@ -100,8 +102,9 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-reco
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Add Node.js 20.x LTS for running frontend
+# Add Node.js 20.x LTS for running frontend (use Tsinghua mirror)
 RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && sed -i 's/deb.debian.org/mirrors.tuna.tsinghua.edu.cn/g' /etc/apt/sources.list.d/debian.sources \
     && apt-get install -y nodejs \
     && rm -rf /var/lib/apt/lists/*
 

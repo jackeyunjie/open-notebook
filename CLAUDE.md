@@ -30,6 +30,7 @@ This file provides architectural guidance for contributors working on Open Noteb
 │ - LangGraph workflow orchestration                      │
 │ - Job queue for async operations (podcasts)             │
 │ - Multi-provider AI provisioning via Esperanto          │
+│ - Living Knowledge System integration (port 8888)       │
 └────────────────────────┬────────────────────────────────┘
                          │ SurrealQL
 ┌────────────────────────▼────────────────────────────────┐
@@ -41,6 +42,80 @@ This file provides architectural guidance for contributors working on Open Noteb
 │ - Vector embeddings for semantic search                 │
 └─────────────────────────────────────────────────────────┘
 ```
+
+---
+
+## Living Knowledge System (New)
+
+An organic, self-growing knowledge management system based on human body organization principles.
+
+### Architecture: Five-Layer Cognitive Model
+
+```
+┌─────────────────────────────────────────────────────────┐
+│  P4 DataAgent (Immune System)                           │
+│  - Data lifecycle management (hot/warm/cold/frozen)     │
+│  - Quality monitoring and auto-repair                   │
+│  - Storage cost optimization (83% savings)              │
+├─────────────────────────────────────────────────────────┤
+│  P3 Evolution Layer                                     │
+│  - Self-improvement through feedback loops              │
+│  - Strategy optimization over time                      │
+├─────────────────────────────────────────────────────────┤
+│  P2 Relationship Layer                                  │
+│  - Knowledge graph construction                         │
+│  - Cross-reference and association                      │
+├─────────────────────────────────────────────────────────┤
+│  P1 Judgment Layer                                      │
+│  - Value assessment and prioritization                  │
+│  - Multi-dimensional evaluation                         │
+├─────────────────────────────────────────────────────────┤
+│  P0 Perception Layer                                    │
+│  - Pain Scanner: Detect friction points                 │
+│  - Emotion Watcher: Monitor sentiment                   │
+│  - Trend Hunter: Identify patterns                      │
+│  - Scene Discover: Context awareness                    │
+└─────────────────────────────────────────────────────────┘
+```
+
+### Biological Analogies
+
+| Software Component | Biological Analogy | Function |
+|-------------------|-------------------|----------|
+| Skill | Cell | Basic functional unit with lifecycle |
+| Agent | Tissue | Group of collaborating skills |
+| System | Organ | Complex functional unit |
+| Flow | Meridian | Data/control/temporal connections |
+| Trigger | Acupoint | External access points |
+| DataAgent | Immune System | Health monitoring and maintenance |
+
+### Technical Stack
+
+- **Database**: PostgreSQL 15+ with TimescaleDB 2.11+
+- **API**: FastAPI on port 8888
+- **Architecture**: Independent service (loosely coupled)
+- **Data Model**: Cell → Tissue → Organ → Meridian → Acupoint
+
+### Quick Start
+
+```bash
+# Start Living Knowledge System
+./scripts/start_living.sh dev
+
+# Access API
+open http://localhost:8888/docs
+```
+
+### Key Files
+
+- `open_notebook/skills/living/skill_cell.py` - Cell lifecycle management
+- `open_notebook/skills/living/agent_tissue.py` - Agent coordination
+- `open_notebook/skills/living/meridian_flow.py` - Message flow system
+- `open_notebook/skills/living/acupoint_trigger.py` - External triggers
+- `open_notebook/skills/living/p4_data_agent.py` - Data lifecycle management
+- `open_notebook/skills/living/launcher.py` - Service launcher
+- `open_notebook/skills/living/api_server.py` - REST API server
+- `open_notebook/skills/living/database/` - PostgreSQL abstraction layer
 
 ---
 
@@ -155,6 +230,7 @@ See dedicated CLAUDE.md files for detailed guidance:
 - **[open_notebook/ai/CLAUDE.md](open_notebook/ai/CLAUDE.md)**: ModelManager, AI provider integration, Esperanto usage
 - **[open_notebook/graphs/CLAUDE.md](open_notebook/graphs/CLAUDE.md)**: LangGraph workflow design, state machines
 - **[open_notebook/database/CLAUDE.md](open_notebook/database/CLAUDE.md)**: SurrealDB operations, migrations, async patterns
+- **[open_notebook/skills/living/](open_notebook/skills/living/)**: Living Knowledge System - organic, self-growing knowledge management
 
 ---
 
@@ -218,4 +294,4 @@ See dedicated CLAUDE.md files for detailed guidance:
 
 ---
 
-**Last Updated**: January 2026 | **Project Version**: 1.2.4+
+**Last Updated**: February 2026 | **Project Version**: 1.3.0+

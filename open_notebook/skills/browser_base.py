@@ -68,6 +68,16 @@ class BrowserUseSkill(Skill):
             "type": "string",
             "default": "/usr/bin/google-chrome",
             "description": "Path to Chrome executable"
+        },
+        "use_system_browser": {
+            "type": "boolean",
+            "default": False,
+            "description": "Use system browser with existing login session (reuses cookies and authentication)"
+        },
+        "user_data_dir": {
+            "type": "string",
+            "default": "",
+            "description": "Path to Chrome user data directory (for use_system_browser)"
         }
     }
     
@@ -77,6 +87,8 @@ class BrowserUseSkill(Skill):
         self.timeout: int = config.parameters.get("timeout", 30)
         self.window_size: str = config.parameters.get("window_size", "1920,1080")
         self.chrome_path: str = config.parameters.get("chrome_path", "/usr/bin/google-chrome")
+        self.use_system_browser: bool = config.parameters.get("use_system_browser", False)
+        self.user_data_dir: str = config.parameters.get("user_data_dir", "")
         self._browser = None
         self._agent = None
         super().__init__(config)
@@ -99,10 +111,37 @@ class BrowserUseSkill(Skill):
             width, height = self.window_size.split(",")
             
             # Configure browser
-            browser_config = BrowserConfig(
-                headless=self.headless,
-                chrome_instance_path=self.chrome_path if os.path.exists(self.chrome_path) else None,
-            )
+            if self.use_system_browser:
+                # Use system browser with existing login session
+                logger.info("Using system browser with existing login session")
+                
+                # Auto-detect Chrome user data directory if not provided
+                if not self.user_data_dir:
+                    if os.name == 'nt':  # Windows
+                        self.user_data_dir = os.path.expandvars(r"%LOCALAPPDATA%\Google\Chrome\User Data")
+                    else:  # macOS/Linux
+                        self.user_data_dir = os.path.expanduser("~/Library/Application Support/Google/Chrome")
+                        if not os.path.exists(self.user_data_dir):
+                            self.user_data_dir = os.path.expanduser("~/.config/google-chrome")
+                
+                logger.info(f"Using Chrome user data dir: {self.user_data_dir}")
+                
+                browser_config = BrowserConfig(
+                    headless=False,  # Must be False to use system browser
+                    chrome_instance_path=self.chrome_path if os.path.exists(self.chrome_path) else None,
+                    extra_chromium_args=[
+                        f"--user-data-dir={self.user_data_dir}",
+                        "--profile-directory=Default",
+                        "--no-first-run",
+                        "--no-default-browser-check"
+                    ]
+                )
+            else:
+                # Use isolated browser (default behavior)
+                browser_config = BrowserConfig(
+                    headless=self.headless,
+                    chrome_instance_path=self.chrome_path if os.path.exists(self.chrome_path) else None,
+                )
             
             self._browser = Browser(config=browser_config)
             

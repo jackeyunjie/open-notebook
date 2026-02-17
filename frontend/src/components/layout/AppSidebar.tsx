@@ -42,6 +42,8 @@ import {
   Wrench,
   Command,
   Zap,
+  UserCircle,
+  Send,
 } from 'lucide-react'
 
 const getNavigation = (t: TranslationKeys) => [
@@ -62,6 +64,7 @@ const getNavigation = (t: TranslationKeys) => [
     title: t.navigation.create,
     items: [
       { name: t.navigation.podcasts, href: '/podcasts', icon: Mic },
+      { name: '内容发布', href: '/publish', icon: Send },
     ],
   },
   {
@@ -70,6 +73,7 @@ const getNavigation = (t: TranslationKeys) => [
       { name: t.navigation.models, href: '/settings/api-keys', icon: Bot },
       { name: t.navigation.transformations, href: '/transformations', icon: Shuffle },
       { name: t.navigation.skills, href: '/skills', icon: Zap },
+      { name: 'IP指挥中心', href: '/ip-center', icon: UserCircle },
       { name: t.navigation.settings, href: '/settings', icon: Settings },
       { name: t.navigation.advanced, href: '/advanced', icon: Wrench },
     ],

@@ -11,15 +11,14 @@
 - [open_notebook/domain/base.py](file://open_notebook/domain/base.py)
 - [open_notebook/skills/browser_task.py](file://open_notebook/skills/browser_task.py)
 - [open_notebook/skills/browser_base.py](file://open_notebook/skills/browser_base.py)
+- [open_notebook/skills/__init__.py](file://open_notebook/skills/__init__.py)
 </cite>
 
 ## 更新摘要
 **变更内容**
-- 新增取消执行功能，支持取消运行中的技能执行
-- 简化SkillExecution数据模型，移除复杂的执行跟踪字段
-- 增强调度器状态管理接口，提供更完整的调度器监控能力
-- 更新浏览器自动化技能实现，新增BrowserTaskSkill和BrowserMonitorSkill
-- 改进数据模型的灵活性，支持Union[str, datetime]和Any类型处理
+- 在技能系统初始化中正确导出SkillStatus枚举，确保外部模块可以访问技能执行状态
+- 增强技能系统的API可用性，不影响现有技能功能
+- 更新技能状态枚举的导出机制，提升外部集成能力
 
 ## 目录
 1. [简介](#简介)
@@ -49,6 +48,8 @@
 **更新** 新增了取消执行功能，允许用户取消正在运行的技能执行。取消执行功能通过将执行状态标记为"cancelled"来实现，同时保持执行记录的完整性。
 
 **更新** 新增了BrowserTaskSkill和BrowserMonitorSkill两个高级浏览器自动化技能，提供更灵活的浏览器任务执行和网页监控功能。
+
+**更新** 最重要的更新是在技能系统初始化中正确导出SkillStatus枚举，确保外部模块可以访问技能执行状态。这一更新显著增强了技能系统的API可用性，为外部集成和扩展提供了更好的支持。
 
 ## 项目结构
 
@@ -156,6 +157,8 @@ M --> C
 - 支持Union[str, datetime]和Any类型的灵活数据处理
 
 **更新** 数据模型现在支持更灵活的类型注解，通过Union[str, datetime]类型处理数据库中的字符串和datetime格式，以及Any类型处理API响应中的多样化数据格式。新增的 `model_config = {"arbitrary_types_allowed": True}` 配置进一步增强了API响应模型对多样化数据类型的处理能力。
+
+**更新** 最重要的更新是在技能系统初始化中正确导出SkillStatus枚举。通过修改`open_notebook/skills/__init__.py`文件，现在外部模块可以直接访问`SkillStatus`枚举，无需通过内部模块路径导入。
 
 **章节来源**
 - [open_notebook/skills/base.py](file://open_notebook/skills/base.py#L83-L183)
@@ -353,6 +356,8 @@ BrowserUseSkill <|-- BrowserMonitorSkill
 - 输出数据
 - 错误信息
 - 创建的资源ID列表
+
+**更新** SkillStatus枚举现在可以在外部模块中直接访问，增强了API的可用性和外部集成能力。
 
 **章节来源**
 - [open_notebook/skills/base.py](file://open_notebook/skills/base.py#L17-L183)
@@ -868,7 +873,7 @@ API-->>Client : 执行已取消
 - [api/routers/skills.py](file://api/routers/skills.py#L418-L430)
 - [open_notebook/skills/runner.py](file://open_notebook/skills/runner.py#L212-L237)
 
-## 浏览器自动化技能
+## 浏览ers自动化技能
 
 **新增** 技能系统现在包含两个高级浏览器自动化技能，提供更灵活的浏览器任务执行和监控功能。
 
@@ -1059,6 +1064,8 @@ R --> B
 - 自动化的Chrome路径检测和配置
 - 智能的任务执行和内容提取
 
+**更新** 最重要的更新是在技能系统初始化中正确导出SkillStatus枚举，通过修改`open_notebook/skills/__init__.py`文件，现在外部模块可以直接访问`SkillStatus`枚举，无需通过内部模块路径导入。
+
 **章节来源**
 - [open_notebook/database/repository.py](file://open_notebook/database/repository.py#L1-L195)
 
@@ -1114,6 +1121,13 @@ R --> B
 - 异步取消操作避免阻塞
 - 状态一致性保证
 - 取消操作的原子性处理
+
+### 9. **新增** SkillStatus枚举导出优化
+**更新** 正确导出SkillStatus枚举显著提升了外部集成性能：
+- 减少模块导入层级
+- 提高枚举访问效率
+- 支持直接外部访问
+- 增强API可用性
 
 ## 故障排除指南
 
@@ -1199,6 +1213,11 @@ R --> B
 **原因**：取消只更新数据库状态，不强制停止进程
 **解决**：理解取消机制的工作原理，等待进程自然结束
 
+#### 17. **新增** SkillStatus枚举访问问题
+**症状**：外部模块无法访问SkillStatus枚举
+**原因**：枚举未正确导出
+**解决**：检查open_notebook/skills/__init__.py文件中的导出配置
+
 **章节来源**
 - [api/routers/skills.py](file://api/routers/skills.py#L162-L169)
 - [open_notebook/skills/runner.py](file://open_notebook/skills/runner.py#L133-L149)
@@ -1224,6 +1243,8 @@ R --> B
 
 **更新** 最新的取消执行功能为系统提供了更好的执行控制能力，用户可以取消正在运行的技能执行，提高了系统的可用性和用户体验。
 
+**更新** 最重要的更新是在技能系统初始化中正确导出SkillStatus枚举，确保外部模块可以访问技能执行状态。这一更新显著增强了技能系统的API可用性，为外部集成和扩展提供了更好的支持。
+
 系统的主要优势包括：
 - **高度可扩展**：支持自定义技能开发
 - **易于使用**：提供直观的REST API接口
@@ -1236,10 +1257,13 @@ R --> B
 - **智能内容提取**：自动化的网页内容识别和提取
 - **灵活的执行控制**：支持取消执行和状态查询
 - **简化的数据模型**：移除复杂的执行跟踪字段，提高性能
+- **增强的API可用性**：正确的SkillStatus枚举导出，提升外部集成能力
 
 **更新** 最新的改进显著增强了系统的数据处理能力和自动化执行能力，通过Union[str, datetime]类型注解和Any类型响应模型，系统现在能够更好地处理不同格式的日期时间数据和API响应数据，为未来的扩展提供了更好的基础。新增的 `model_config = {"arbitrary_types_allowed": True}` 配置和默认空列表值进一步提升了系统的健壮性和用户体验。
 
 **更新** 新增的取消执行功能和简化的SkillExecution数据模型为系统带来了更好的用户体验和更高的性能表现，用户可以通过API轻松地控制技能执行，系统能够更高效地处理执行历史和状态信息。
+
+**更新** 最重要的更新是在技能系统初始化中正确导出SkillStatus枚举，这一看似简单的改动实际上大大提升了系统的API可用性和外部集成能力，为开发者提供了更好的编程体验和更灵活的扩展可能性。
 
 未来的发展方向可能包括：
 - 更多内置技能类型
@@ -1254,3 +1278,4 @@ R --> B
 - **新增** AI模型集成的持续改进
 - **新增** 取消执行功能的进一步完善
 - **新增** 更精细的执行状态控制和查询接口
+- **新增** 正确的SkillStatus枚举导出带来的API可用性提升

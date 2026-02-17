@@ -24,17 +24,20 @@
 - [open_notebook/skills/base.py](file://open_notebook/skills/base.py)
 - [open_notebook/skills/scheduler.py](file://open_notebook/skills/scheduler.py)
 - [open_notebook/domain/skill.py](file://open_notebook/domain/skill.py)
+- [open_notebook/domain/workflow.py](file://open_notebook/domain/workflow.py)
+- [open_notebook/workflows/__init__.py](file://open_notebook/workflows/__init__.py)
+- [api/main.py](file://api/main.py)
+- [api/routers/workflows.py](file://api/routers/workflows.py)
+- [api/routers/__init__.py](file://api/routers/__init__.py)
 - [pyproject.toml](file://pyproject.toml)
 </cite>
 
 ## 更新摘要
 **变更内容**
-- 新增docker-compose.dev.yml开发环境配置详解，支持热重载和源代码挂载
-- 更新docker-compose.yml生产环境增强，包含完整的API密钥环境变量支持和依赖安装脚本
-- 新增依赖安装脚本install-deps.sh，自动安装Skill系统所需的Python包
-- 增强开发工作流程支持，包括源代码挂载和开发卷配置
-- 补充API密钥提供者机制和凭证系统的详细说明
-- 增强环境变量配置和安全最佳实践指导
+- 增强了开发卷挂载配置，新增工作流目录和工作流领域模型的卷挂载
+- 改进了API路由器挂载方式，提供更好的本地代码开发体验
+- 更新了生产环境的卷挂载配置，支持工作流引擎的动态开发
+- 增强了技能系统与工作流系统的集成开发支持
 
 ## 目录
 1. [简介](#简介)
@@ -56,7 +59,7 @@
 ## 简介
 本文件面向使用 Docker Compose 部署 Open Notebook 的用户，系统化说明多容器架构的优势与适用场景（数据库、API 服务、前端应用、本地 AI 服务的分离），并基于仓库中的示例配置文件，给出开发环境、完整本地部署（含 Ollama 与本地 TTS/STT）、以及单容器替代方案的对比与实践建议。文档还涵盖环境变量、卷挂载、网络设置、服务依赖关系、启动顺序、健康检查、故障排除与扩展定制方法。
 
-**更新** 新增对docker-compose.dev.yml开发环境配置的详细说明，以及docker-compose.yml生产环境中的完整API密钥环境变量支持机制和依赖安装脚本。
+**更新** 新增对工作流系统和API路由器挂载方式的详细说明，增强了开发卷挂载配置，提供更好的本地代码开发体验。
 
 ## 项目结构
 Open Notebook 提供了多种 Docker Compose 示例，覆盖从最小化部署到完全本地化的隐私优先方案。核心目录与文件如下：
@@ -67,6 +70,7 @@ Open Notebook 提供了多种 Docker Compose 示例，覆盖从最小化部署�
 - 脚本与镜像构建文件：包含等待 API 健康脚本、依赖安装脚本与多阶段 Dockerfile
 - API密钥提供者：支持数据库优先的凭证系统和环境变量回退
 - 技能系统：支持自动化任务调度和浏览器自动化功能
+- 工作流系统：支持多步骤工作流编排和执行
 
 ```mermaid
 graph TB
@@ -107,6 +111,11 @@ SK1["skills/base.py"]
 SK2["skills/scheduler.py"]
 SK3["domain/skill.py"]
 end
+subgraph "工作流系统"
+WF1["workflows/__init__.py"]
+WF2["domain/workflow.py"]
+WF3["routers/workflows.py"]
+end
 R1 --- S2
 R2 --- K1
 R1 --- E2
@@ -126,10 +135,12 @@ F2 --- E4
 K1 --- K2
 SK1 --- SK2
 SK2 --- SK3
+WF1 --- WF2
+WF2 --- WF3
 ```
 
 **图表来源**
-- [docker-compose.yml](file://docker-compose.yml#L1-L57)
+- [docker-compose.yml](file://docker-compose.yml#L1-L59)
 - [docker-compose.dev.yml](file://docker-compose.dev.yml#L1-L34)
 - [examples/docker-compose-dev.yml](file://examples/docker-compose-dev.yml#L1-L29)
 - [examples/docker-compose-ollama.yml](file://examples/docker-compose-ollama.yml#L1-L64)
@@ -150,9 +161,13 @@ SK2 --- SK3
 - [open_notebook/skills/base.py](file://open_notebook/skills/base.py#L1-L183)
 - [open_notebook/skills/scheduler.py](file://open_notebook/skills/scheduler.py#L1-L65)
 - [open_notebook/domain/skill.py](file://open_notebook/domain/skill.py#L1-L162)
+- [open_notebook/domain/workflow.py](file://open_notebook/domain/workflow.py#L1-L309)
+- [open_notebook/workflows/__init__.py](file://open_notebook/workflows/__init__.py#L1-L29)
+- [api/main.py](file://api/main.py#L1-L232)
+- [api/routers/workflows.py](file://api/routers/workflows.py#L1-L453)
 
 **章节来源**
-- [docker-compose.yml](file://docker-compose.yml#L1-L57)
+- [docker-compose.yml](file://docker-compose.yml#L1-L59)
 - [docker-compose.dev.yml](file://docker-compose.dev.yml#L1-L34)
 - [examples/docker-compose-dev.yml](file://examples/docker-compose-dev.yml#L1-L29)
 - [examples/docker-compose-ollama.yml](file://examples/docker-compose-ollama.yml#L1-L64)
@@ -160,6 +175,7 @@ SK2 --- SK3
 - [examples/docker-compose-single.yml](file://examples/docker-compose-single.yml#L1-L23)
 - [docs/1-INSTALLATION/docker-compose.md](file://docs/1-INSTALLATION/docker-compose.md#L1-L357)
 - [open_notebook/ai/key_provider.py](file://open_notebook/ai/key_provider.py#L1-L450)
+- [open_notebook/domain/workflow.py](file://open_notebook/domain/workflow.py#L1-L309)
 
 ## 核心组件
 - 数据库服务（SurrealDB）
@@ -171,14 +187,15 @@ SK2 --- SK3
   - 支持通过环境变量配置数据库连接、加密密钥、外部 API URL 等
   - **新增**：完整的API密钥环境变量支持，包括DeepSeek、阿里云百炼、Moonshot等提供商
   - **新增**：依赖安装脚本自动安装Skill系统所需的Python包
+  - **新增**：增强的开发卷挂载配置，支持工作流系统的动态开发
 - 可选服务
   - Ollama：本地大语言模型与嵌入模型推理
   - Speaches：本地 TTS/STT 服务器（OpenAI 兼容）
 
-**更新** 生产环境配置现在包含完整的API密钥环境变量支持和依赖安装脚本，开发环境提供热重载和源代码挂载。
+**更新** 生产环境配置现在包含完整的API密钥环境变量支持和依赖安装脚本，开发环境提供热重载和源代码挂载，增强了工作流系统的开发支持。
 
 **章节来源**
-- [docker-compose.yml](file://docker-compose.yml#L1-L57)
+- [docker-compose.yml](file://docker-compose.yml#L1-L59)
 - [docker-compose.dev.yml](file://docker-compose.dev.yml#L1-L34)
 - [examples/docker-compose-ollama.yml](file://examples/docker-compose-ollama.yml#L1-L64)
 - [examples/docker-compose-full-local.yml](file://examples/docker-compose-full-local.yml#L1-L198)
@@ -194,7 +211,7 @@ SK2 --- SK3
 graph TB
 subgraph "基础部署数据库与应用分离"
 SDB1["SurrealDB<br/>端口:8000"]
-APP1["Open Notebook<br/>端口:8502,5055<br/>API密钥: 环境变量<br/>依赖安装: install-deps.sh"]
+APP1["Open Notebook<br/>端口:8502,5055<br/>API密钥: 环境变量<br/>依赖安装: install-deps.sh<br/>工作流支持: 增强卷挂载"]
 APP1 --- SDB1
 end
 subgraph "仅本地 AIOllama"
@@ -216,7 +233,7 @@ end
 ```
 
 **图表来源**
-- [docker-compose.yml](file://docker-compose.yml#L1-L57)
+- [docker-compose.yml](file://docker-compose.yml#L1-L59)
 - [docker-compose.dev.yml](file://docker-compose.dev.yml#L1-L34)
 - [examples/docker-compose-ollama.yml](file://examples/docker-compose-ollama.yml#L1-L64)
 - [examples/docker-compose-full-local.yml](file://examples/docker-compose-full-local.yml#L1-L198)
@@ -234,7 +251,7 @@ end
   - 应用服务需先于数据库完成初始化，可通过 depends_on 或启动脚本等待
 
 **章节来源**
-- [docker-compose.yml](file://docker-compose.yml#L1-L57)
+- [docker-compose.yml](file://docker-compose.yml#L1-L59)
 - [docker-compose.dev.yml](file://docker-compose.dev.yml#L1-L34)
 - [examples/docker-compose-dev.yml](file://examples/docker-compose-dev.yml#L1-L29)
 - [docs/5-CONFIGURATION/database.md](file://docs/5-CONFIGURATION/database.md#L1-L51)
@@ -253,6 +270,8 @@ end
   - 应用数据目录映射到宿主机，便于备份与持久化
   - **开发环境**：挂载源代码目录以支持热重载
   - **生产环境**：挂载技能系统相关文件以支持动态开发
+  - **新增**：挂载工作流目录和工作流领域模型以支持工作流开发
+  - **新增**：挂载API路由器以支持API路由开发
 - 依赖关系
   - 依赖数据库服务；在完整本地部署中还依赖 Ollama 与 Speaches
 
@@ -288,7 +307,7 @@ U-->>F : 正常交互
 - [Dockerfile](file://Dockerfile#L1-L159)
 - [scripts/wait-for-api.sh](file://scripts/wait-for-api.sh#L1-L23)
 - [scripts/install-deps.sh](file://scripts/install-deps.sh#L1-L20)
-- [docker-compose.yml](file://docker-compose.yml#L1-L57)
+- [docker-compose.yml](file://docker-compose.yml#L1-L59)
 - [docker-compose.dev.yml](file://docker-compose.dev.yml#L1-L34)
 
 ### 组件三：可选服务（Ollama）
@@ -344,13 +363,13 @@ SPE["Speaches:8969"] --> APP
 ```
 
 **图表来源**
-- [docker-compose.yml](file://docker-compose.yml#L1-L57)
+- [docker-compose.yml](file://docker-compose.yml#L1-L59)
 - [docker-compose.dev.yml](file://docker-compose.dev.yml#L1-L34)
 - [examples/docker-compose-ollama.yml](file://examples/docker-compose-ollama.yml#L1-L64)
 - [examples/docker-compose-full-local.yml](file://examples/docker-compose-full-local.yml#L1-L198)
 
 **章节来源**
-- [docker-compose.yml](file://docker-compose.yml#L1-L57)
+- [docker-compose.yml](file://docker-compose.yml#L1-L59)
 - [docker-compose.dev.yml](file://docker-compose.dev.yml#L1-L34)
 - [examples/docker-compose-ollama.yml](file://examples/docker-compose-ollama.yml#L1-L64)
 - [examples/docker-compose-full-local.yml](file://examples/docker-compose-full-local.yml#L1-L198)
@@ -387,8 +406,9 @@ SPE["Speaches:8969"] --> APP
   2) 自动挂载源代码目录支持热重载
   3) 使用本地构建的镜像进行开发调试
   4) **新增**：支持实时代码修改和自动重启
+  5) **新增**：支持工作流系统的动态开发
 
-**更新** 新增开发环境部署步骤，强调热重载和本地开发便利性。
+**更新** 新增开发环境部署步骤，强调热重载和本地开发便利性，以及工作流系统的开发支持。
 
 **章节来源**
 - [docs/1-INSTALLATION/docker-compose.md](file://docs/1-INSTALLATION/docker-compose.md#L1-L357)
@@ -426,12 +446,15 @@ SPE["Speaches:8969"] --> APP
 - **新增**：技能系统环境变量
   - OPEN_NOTEBOOK_SKILL_ENABLED：启用技能系统
   - OPEN_NOTEBOOK_SKILL_SCHEDULE：技能调度配置
+- **新增**：工作流系统环境变量
+  - OPEN_NOTEBOOK_WORKFLOW_ENABLED：启用工作流系统
+  - OPEN_NOTEBOOK_WORKFLOW_ENGINE：工作流引擎配置
 - 配置来源
   - docker-compose 环境变量
   - .env.example 提供模板
   - 文档中的环境变量参考表
 
-**更新** 生产环境配置现在包含完整的API密钥环境变量支持和技能系统配置，开发环境提供热重载和源代码挂载。
+**更新** 生产环境配置现在包含完整的API密钥环境变量支持和技能系统配置，开发环境提供热重载和源代码挂载，新增工作流系统的开发支持。
 
 **章节来源**
 - [.env.example](file://.env.example#L1-L60)
@@ -443,10 +466,12 @@ SPE["Speaches:8969"] --> APP
 - 基础部署（推荐）
   - 分离数据库与应用，便于扩展与维护
   - **生产环境**：包含完整的API密钥环境变量支持和依赖安装脚本
+  - **新增**：增强的开发卷挂载配置，支持工作流系统的动态开发
 - 开发环境
   - 使用本地构建的镜像，加载 .env 文件，便于调试
   - **新增**：docker-compose.dev.yml提供热重载和源代码挂载
   - **新增**：支持实时代码修改和自动重启
+  - **新增**：支持工作流系统的动态开发
 - Ollama 本地模型
   - 新增 Ollama 服务，应用通过服务名访问
 - 完整本地部署（隐私优先）
@@ -454,10 +479,10 @@ SPE["Speaches:8969"] --> APP
 - 单容器（不推荐）
   - 将数据库、API、Worker 与前端打包在一个容器中，适合快速体验
 
-**更新** 新增docker-compose.dev.yml开发环境配置的详细说明。
+**更新** 新增docker-compose.dev.yml开发环境配置的详细说明，以及增强的开发卷挂载配置。
 
 **章节来源**
-- [docker-compose.yml](file://docker-compose.yml#L1-L57)
+- [docker-compose.yml](file://docker-compose.yml#L1-L59)
 - [docker-compose.dev.yml](file://docker-compose.dev.yml#L1-L34)
 - [examples/docker-compose-dev.yml](file://examples/docker-compose-dev.yml#L1-L29)
 - [examples/docker-compose-ollama.yml](file://examples/docker-compose-ollama.yml#L1-L64)
@@ -575,22 +600,37 @@ H --> F
 #### 生产环境卷配置
 - **notebook_data**：应用数据持久化
 - **技能系统文件**：挂载技能相关文件以支持动态开发
+- **工作流系统文件**：挂载工作流相关文件以支持动态开发
+- **API路由器文件**：挂载API路由以支持动态开发
 - **依赖安装脚本**：挂载安装脚本以支持动态依赖管理
 
-#### 挂载文件列表
+#### 增强的挂载文件列表
 生产环境挂载的关键文件：
 - `./open_notebook/skills`：技能系统源代码
+- `./open_notebook/workflows`：工作流系统源代码
 - `./open_notebook/ai/key_provider.py`：API密钥提供者
 - `./open_notebook/domain/skill.py`：技能领域模型
+- `./open_notebook/domain/workflow.py`：工作流领域模型
 - `./api/main.py`：API主入口
-- `./api/routers/skills.py`：技能路由
+- `./api/routers/workflows.py`：工作流路由
+- `./api/routers/workflow_builder.py`：工作流构建器路由
+- `./api/routers/workflow_templates.py`：工作流模板路由
 - `./scripts/install-deps.sh`：依赖安装脚本
+
+#### API路由器挂载方式改进
+API路由器现在支持更灵活的挂载方式：
+- **独立挂载**：工作流相关路由单独挂载，支持独立开发
+- **批量挂载**：通过API路由器包统一管理，减少重复配置
+- **动态加载**：支持运行时重新加载路由模块
 
 **章节来源**
 - [scripts/install-deps.sh](file://scripts/install-deps.sh#L1-L20)
 - [docker-compose.dev.yml](file://docker-compose.dev.yml#L28-L30)
-- [docker-compose.yml](file://docker-compose.yml#L42-L47)
+- [docker-compose.yml](file://docker-compose.yml#L42-L49)
 - [pyproject.toml](file://pyproject.toml#L43-L44)
+- [api/main.py](file://api/main.py#L15-L38)
+- [api/routers/__init__.py](file://api/routers/__init__.py#L1-L56)
+- [api/routers/workflows.py](file://api/routers/workflows.py#L1-L453)
 
 ## 故障排除指南
 - 无法连接 API
@@ -613,6 +653,8 @@ H --> F
   - 确认源代码挂载是否正确
   - 检查热重载功能是否启用
   - 验证本地构建的镜像版本
+  - **新增**：检查工作流系统挂载是否正确
+  - **新增**：验证API路由器挂载是否生效
 - **依赖安装问题**
   - 检查install-deps.sh脚本执行日志
   - 确认网络连接和PyPI访问权限
@@ -621,8 +663,12 @@ H --> F
   - 检查APScheduler是否正确安装
   - 验证browser-use包版本兼容性
   - 确认技能调度器配置
+- **工作流系统问题**
+  - **新增**：检查工作流领域模型挂载
+  - **新增**：验证工作流服务是否正常启动
+  - **新增**：确认工作流调度器配置
 
-**更新** 新增API密钥和凭证系统的故障排除指导，以及依赖安装和技能系统的故障排除指导。
+**更新** 新增API密钥和凭证系统的故障排除指导，以及依赖安装、技能系统和工作流系统的故障排除指导。
 
 **章节来源**
 - [docs/1-INSTALLATION/docker-compose.md](file://docs/1-INSTALLATION/docker-compose.md#L238-L357)
@@ -631,8 +677,9 @@ H --> F
 - [docs/5-CONFIGURATION/local-stt.md](file://docs/5-CONFIGURATION/local-stt.md#L219-L366)
 - [docs/3-USER-GUIDE/api-configuration.md](file://docs/3-USER-GUIDE/api-configuration.md#L324-L358)
 - [scripts/install-deps.sh](file://scripts/install-deps.sh#L1-L20)
+- [open_notebook/domain/workflow.py](file://open_notebook/domain/workflow.py#L1-L309)
 
 ## 结论
 通过 Docker Compose 将数据库、API、前端与本地 AI 服务解耦，Open Notebook 能够在不同场景下灵活部署：从最小化的基础分离部署，到完全本地化的隐私优先方案。结合完善的环境变量体系、卷与网络配置、健康检查与故障排除流程，用户可以稳定地在开发、测试与生产环境中运行该平台。
 
-**更新** 生产环境现在提供完整的API密钥环境变量支持和依赖安装脚本，开发环境提供热重载和源代码挂载，增强了开发体验和安全性。建议优先采用基础分离部署作为起点，再根据需要逐步引入 Ollama 与 Speaches，以获得更好的性能与隐私保障。技能系统的自动依赖安装机制进一步简化了开发环境的配置和维护工作。
+**更新** 生产环境现在提供完整的API密钥环境变量支持和依赖安装脚本，开发环境提供热重载和源代码挂载，增强了开发体验和安全性。新增的工作流系统开发支持和改进的API路由器挂载方式，进一步提升了本地代码开发的便利性和效率。建议优先采用基础分离部署作为起点，再根据需要逐步引入 Ollama 与 Speaches，以获得更好的性能与隐私保障。技能系统的自动依赖安装机制和工作流系统的动态开发支持，进一步简化了开发环境的配置和维护工作。

@@ -43,9 +43,9 @@
 - 嵌入与重建
 - 模型与凭据管理
 - 播客生成与管理
-- **工作流管理（新增）** - 工作流定义、执行、调度和统计
-- **工作流模板（新增）** - 预构建工作流模板的浏览和实例化
-- **对话式工作流构建器（新增）** - AI驱动的工作流生成和优化
+- **工作流管理** - 工作流定义、执行、调度和统计
+- **工作流模板** - 预构建工作流模板的浏览和实例化
+- **对话式工作流构建器** - AI驱动的工作流生成和优化
 - 错误处理与认证机制
 
 本参考文档提供每个端点的 HTTP 方法、URL 模式、请求/响应模型、认证方式、参数说明、返回值格式、错误处理以及最佳实践。
@@ -675,7 +675,7 @@ end
 - [api/routers/embedding.py](file://api/routers/embedding.py#L33-L70)
 - [api/routers/podcasts.py](file://api/routers/podcasts.py#L40-L62)
 
-### 工作流管理（/api/workflows）**新增**
+### 工作流管理（/api/workflows）
 - **工作流定义管理**
   - 列出工作流：GET /api/workflows?notebook_id={notebook_id}&enabled_only={bool}
   - 创建工作流：POST /api/workflows
@@ -708,7 +708,7 @@ end
 - [open_notebook/domain/workflow.py](file://open_notebook/domain/workflow.py#L1-L309)
 - [open_notebook/workflows/service.py](file://open_notebook/workflows/service.py#L1-L240)
 
-### 工作流模板（/api/workflow-templates）**新增**
+### 工作流模板（/api/workflow-templates）
 - **模板浏览**
   - 列出模板：GET /api/workflow-templates?category={category}
   - 获取模板：GET /api/workflow-templates/{template_id}
@@ -724,9 +724,9 @@ end
 
 **章节来源**
 - [api/routers/workflow_templates.py](file://api/routers/workflow_templates.py#L1-L215)
-- [open_notebook/workflows/templates.py](file://open_notebook/workflows/templates.py#L1-L528)
+- [open_notebook/workflows/templates.py](file://open_notebook/workflows/templates.py#L1-L675)
 
-### 对话式工作流构建器（/api/workflow-builder）**新增**
+### 对话式工作流构建器（/api/workflow-builder）
 - **自然语言生成**
   - 生成工作流：POST /api/workflow-builder/generate
   - 优化工作流：POST /api/workflow-builder/refine

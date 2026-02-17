@@ -20,12 +20,11 @@
 
 ## 更新摘要
 **所做更改**
-- 新增Qwen、Moonshot、Zhipu AI三大中国AI提供商支持章节
-- 更新密钥提供器章节，包含新增的环境变量映射和自动初始化功能
-- 更新模型发现器章节，包含Zhipu AI的API发现和静态模型列表
-- 更新连接测试器章节，包含Zhipu AI的测试模型配置
-- 更新自动初始化功能章节，扩展支持三大中国提供商
-- 更新故障排除指南，包含新提供商相关问题
+- 更新密钥提供器章节，包含DeepSeek等中国AI提供商的优先级调整和增强的默认基础URL配置支持
+- 更新模型发现器章节，包含中国AI提供商的优先级排序和增强的默认基础URL配置
+- 更新连接测试器章节，包含中国AI提供商的测试模型配置
+- 更新自动初始化功能章节，扩展支持DeepSeek、Qwen、Moonshot、Zhipu AI等提供商的默认基础URL配置
+- 更新故障排除指南，包含新增的默认基础URL配置相关问题
 
 ## 目录
 1. [简介](#简介)
@@ -40,7 +39,7 @@
 10. [附录](#附录)
 
 ## 简介
-本指南面向需要在系统中配置与使用多种AI提供商（OpenAI、Anthropic、Google Gemini、Groq、Ollama、Azure OpenAI、OpenRouter、Mistral、DeepSeek、xAI、ElevenLabs、Voyage、**新增**Qwen、Moonshot、Zhipu AI等）的用户与开发者，覆盖从API密钥设置、连接测试、模型发现到多提供商配置与切换的完整流程。**新增**了AI提供商自动初始化功能，允许通过环境变量自动配置DeepSeek、Qwen、Moonshot、Zhipu AI等提供商，简化了部署流程。
+本指南面向需要在系统中配置与使用多种AI提供商（OpenAI、Anthropic、Google Gemini、Groq、Ollama、Azure OpenAI、OpenRouter、Mistral、DeepSeek、xAI、ElevenLabs、Voyage、Qwen、Moonshot、Zhipu AI等）的用户与开发者，覆盖从API密钥设置、连接测试、模型发现到多提供商配置与切换的完整流程。**新增**了AI提供商自动初始化功能，允许通过环境变量自动配置DeepSeek、Qwen、Moonshot、Zhipu AI等提供商，简化了部署流程。
 
 ## 项目结构
 围绕AI提供商配置的关键模块分布于后端Python服务与前端Next.js应用之间，通过FastAPI路由暴露管理能力，数据库持久化凭证与模型元数据，前端负责用户交互与运行时配置探测。**新增**了自动初始化功能，在应用启动时自动检测并配置环境变量中的提供商。
@@ -98,9 +97,9 @@ ModelDisc --> KeyProv
 - [api/main.py](file://api/main.py#L90-L100)
 
 ## 核心组件
-- 密钥提供器：统一从数据库凭证或环境变量读取API密钥与基础URL，支持简单与复杂提供商（如Azure、Vertex、OpenAI-Compatible）的多字段配置注入。**新增**了Qwen、Moonshot、Zhipu AI等中国提供商的环境变量映射和自动初始化功能。
-- 连接测试器：针对各提供商进行最小化连通性验证，支持动态模型检测与错误消息归一化。**新增**了Zhipu AI的测试模型配置。
-- 模型发现器：按提供商拉取可用模型列表，自动分类语言/嵌入/语音模型类型，并批量注册到数据库。**新增**了Zhipu AI的API发现和静态模型列表支持。
+- 密钥提供器：统一从数据库凭证或环境变量读取API密钥与基础URL，支持简单与复杂提供商（如Azure、Vertex、OpenAI-Compatible）的多字段配置注入。**新增**了DeepSeek、Qwen、Moonshot、Zhipu AI等中国提供商的优先级调整和增强的默认基础URL配置支持。
+- 连接测试器：针对各提供商进行最小化连通性验证，支持动态模型检测与错误消息归一化。**新增**了中国AI提供商的测试模型配置。
+- 模型发现器：按提供商拉取可用模型列表，自动分类语言/嵌入/语音模型类型，并批量注册到数据库。**新增**了中国AI提供商的优先级排序和增强的默认基础URL配置支持。
 - 模型供应器：根据内容长度与显式指定模型ID选择最优模型实例，确保类型正确并返回LangChain适配器。
 - 模型管理器：从数据库加载默认模型配置，按需合并凭证配置，创建具体模型实例。
 - 领域模型：Credential单条凭证记录；ProviderConfig多配置集合（历史遗留，现以Credential为主）。
@@ -115,7 +114,7 @@ ModelDisc --> KeyProv
 - [open_notebook/domain/provider_config.py](file://open_notebook/domain/provider_config.py#L1-L445)
 
 ## 架构总览
-下图展示从用户在设置页面添加凭据，到测试连接、发现与注册模型，再到运行时按需供应模型的全链路。**新增**了应用启动时的自动初始化流程，支持Qwen、Moonshot、Zhipu AI等中国提供商。
+下图展示从用户在设置页面添加凭据，到测试连接、发现与注册模型，再到运行时按需供应模型的全链路。**新增**了应用启动时的自动初始化流程，支持DeepSeek、Qwen、Moonshot、Zhipu AI等中国提供商。
 
 ```mermaid
 sequenceDiagram
@@ -133,7 +132,7 @@ FE->>API : 创建/更新凭据
 API->>DB : 保存加密凭据
 Main->>K : init_all_providers_from_env()
 K->>DB : 检查现有凭证
-K->>DB : 创建新凭证记录(Qwen/Moonshot/Zhipu)
+K->>DB : 创建新凭证记录(带默认基础URL)
 U->>FE : 测试连接
 FE->>API : POST /credentials/{id}/test
 API->>CT : 执行连接测试
@@ -165,7 +164,7 @@ MM-->>API : 返回模型实例
 
 ### 密钥提供器（Key Provider）
 - 支持的提供商映射：OpenAI、Anthropic、Google、Groq、Mistral、DeepSeek、xAI、OpenRouter、Voyage、ElevenLabs、Ollama（URL型）、**新增**Qwen、Moonshot、Zhipu AI。
-- **新增**的自动初始化配置：init_all_providers_from_env()函数支持DeepSeek、Qwen、Moonshot、Zhipu AI等提供商的环境变量自动配置。
+- **新增**的自动初始化配置：init_all_providers_from_env()函数支持DeepSeek、Qwen、Moonshot、Zhipu AI等提供商的环境变量自动配置，**新增**了增强的默认基础URL配置支持。
 - 复杂提供商配置：
   - Azure：注入多个端点与版本参数。
   - Vertex：注入项目、位置与服务账号路径。
@@ -202,13 +201,13 @@ OC --> Done
 
 ### 自动初始化功能（Environment Variable Auto-Initialization）
 
-**新增**系统支持通过环境变量自动配置AI提供商，无需手动在设置界面添加凭证。该功能在应用启动时自动执行，现已扩展支持Qwen、Moonshot、Zhipu AI三大中国AI提供商。
+**新增**系统支持通过环境变量自动配置AI提供商，无需手动在设置界面添加凭证。该功能在应用启动时自动执行，现已扩展支持DeepSeek、Qwen、Moonshot、Zhipu AI三大中国AI提供商，并**新增**了增强的默认基础URL配置支持。
 
 #### 支持的提供商
-- DeepSeek：DEEPSEEK_API_KEY、DEEPSEEK_BASE_URL
-- Qwen（通义千问）：DASHSCOPE_API_KEY、DASHSCOPE_BASE_URL  
-- Moonshot：MOONSHOT_API_KEY、MOONSHOT_BASE_URL
-- Zhipu AI（智谱清言）：ZHIPU_API_KEY、ZHIPU_BASE_URL
+- DeepSeek：DEEPSEEK_API_KEY、DEEPSEEK_BASE_URL（默认基础URL：https://api.deepseek.com）
+- Qwen（通义千问）：DASHSCOPE_API_KEY、DASHSCOPE_BASE_URL（默认基础URL：https://dashscope.aliyuncs.com/compatible-mode/v1）
+- Moonshot：MOONSHOT_API_KEY、MOONSHOT_BASE_URL（默认基础URL：https://api.moonshot.cn/v1）
+- Zhipu AI（智谱清言）：ZHIPU_API_KEY、ZHIPU_BASE_URL（默认基础URL：https://open.bigmodel.cn/api/paas/v4）
 - OpenAI：OPENAI_API_KEY、OPENAI_BASE_URL
 - Anthropic：ANTHROPIC_API_KEY、ANTHROPIC_BASE_URL
 
@@ -217,8 +216,9 @@ OC --> Done
 2. 遍历支持的提供商配置（包括新增的三大中国提供商）
 3. 检查数据库中是否已存在该提供商的凭证
 4. 如果不存在，则检查环境变量中对应的API密钥
-5. 自动创建Credential和ProviderConfig记录
-6. 将提供商标记为"自动配置"
+5. **新增**：确定基础URL，优先使用环境变量中的BASE_URL，否则使用默认基础URL
+6. 自动创建Credential和ProviderConfig记录
+7. 将提供商标记为"自动配置"
 
 ```mermaid
 flowchart TD
@@ -230,7 +230,12 @@ HasCred --> |是| Skip["跳过此提供商"]
 HasCred --> |否| CheckEnv["检查环境变量"]
 CheckEnv --> HasKey{"环境变量存在？"}
 HasKey --> |否| Skip
-HasKey --> |是| CreateCred["创建Credential记录"]
+HasKey --> |是| DetermineBaseUrl["确定基础URL"]
+DetermineBaseUrl --> UseEnv{"环境变量BASE_URL存在？"}
+UseEnv --> |是| UseEnvUrl["使用环境变量中的BASE_URL"]
+UseEnv --> |否| UseDefault["使用默认基础URL"]
+UseEnvUrl --> CreateCred["创建Credential记录"]
+UseDefault --> CreateCred
 CreateCred --> CreateProvCfg["创建ProviderConfig记录"]
 CreateProvCfg --> Success["标记初始化成功"]
 Skip --> Next["下一个提供商"]
@@ -254,7 +259,7 @@ Next --> End(["完成"])
   - Azure：列出模型接口，避免部署名差异导致的调用失败。
   - Ollama：访问本地标签接口，确认服务可达与模型存在。
   - OpenAI-Compatible：访问/models接口，确认兼容端点可用。
-  - **新增**Zhipu AI：使用glm-4-flash模型进行语言模型测试。
+  - **新增**中国AI提供商：DeepSeek使用deepseek-chat模型，Qwen使用qwen-turbo模型，Moonshot使用moonshot-v1-8k模型，Zhipu AI使用glm-4-flash模型进行语言模型测试。
 - 错误消息归一化：将HTTP状态码、超时、网络错误等转换为用户可理解的消息。
 
 ```mermaid
@@ -272,9 +277,9 @@ else Ollama
 CT->>P : 访问/api/tags
 else 兼容端点
 CT->>P : GET /models
-else Zhipu AI
+else 中国AI提供商
 CT->>K : 注入环境变量
-CT->>P : 调用glm-4-flash测试
+CT->>P : 调用特定测试模型
 else 云提供商
 CT->>K : 注入环境变量
 CT->>P : 调用最小化请求
@@ -297,16 +302,21 @@ API-->>FE : 显示测试结果
 
 ### 模型发现器（Model Discovery）
 - 支持提供商：OpenAI、Anthropic、Google Gemini、Groq、Mistral、DeepSeek、xAI、OpenRouter、Voyage、ElevenLabs、Ollama、OpenAI-Compatible、**新增**Qwen、Moonshot、Zhipu AI。
+- **新增**的优先级排序：中国AI提供商（DeepSeek、Qwen、Moonshot、Zhipu AI）具有更高的优先级，确保本地部署时的性能优势。
 - 自动分类：基于命名模式与能力字段将模型归类为语言/嵌入/语音模型。
 - 并行同步：一次性为所有支持的提供商执行发现与注册，避免重复查询。
-- **新增**Zhipu AI支持：提供API发现功能和静态模型列表作为后备方案。
+- **新增**中国AI提供商支持：DeepSeek、Qwen、Moonshot、Zhipu AI提供API发现功能和静态模型列表作为后备方案。
 
 ```mermaid
 flowchart TD
 S(["开始"]) --> ForEach["遍历支持的提供商"]
 ForEach --> HasFunc{"是否存在发现函数？"}
 HasFunc --> |否| Skip["跳过可能需要凭证"]
-HasFunc --> |是| Call["调用对应发现函数"]
+HasFunc --> |是| CheckPriority{"是否为中国AI提供商？"}
+CheckPriority --> |是| Priority["高优先级处理"]
+CheckPriority --> |否| Normal["常规处理"]
+Priority --> Call["调用对应发现函数"]
+Normal --> Call
 Call --> Parse["解析返回的模型列表"]
 Parse --> Classify["按命名与能力分类"]
 Classify --> Batch["批量去重与注册"]
@@ -406,7 +416,8 @@ AI_DISC --> AI_KEY
 - 运行时配置探测：前端优先使用相对路径代理，降低跨域与端口问题带来的额外延迟。
 - 大上下文模型选择：当输入token数超过阈值时自动切换，避免超上下文限制导致的失败重试。
 - **新增**自动初始化性能：仅在应用启动时执行一次，检查数据库中现有凭证，避免重复创建。
-- **新增**Zhipu AI发现性能：提供API发现和静态模型列表双重保障，确保模型发现的可靠性。
+- **新增**中国AI提供商优先级：中国AI提供商具有更高的优先级，确保本地部署时的性能优势。
+- **新增**默认基础URL配置：自动初始化时提供默认基础URL，减少配置复杂度。
 
 **章节来源**
 - [open_notebook/ai/model_discovery.py](file://open_notebook/ai/model_discovery.py#L708-L724)
@@ -440,9 +451,12 @@ AI_DISC --> AI_KEY
 - **新增**自动初始化失败
   - 现象：应用启动时出现"Provider auto-initialization failed"警告。
   - 排查：检查OPEN_NOTEBOOK_ENCRYPTION_KEY是否正确设置，确认环境变量格式正确，查看日志获取详细错误信息。
-- **新增**Zhipu AI连接问题
-  - 现象：Zhipu AI测试失败或模型发现异常。
-  - 排查：确认ZHIPU_API_KEY和ZHIPU_BASE_URL配置正确，检查网络连通性和API可用性。
+- **新增**默认基础URL配置问题
+  - 现象：自动初始化的提供商无法连接，提示"无基础URL配置"。
+  - 排查：确认环境变量中的BASE_URL已正确设置，或允许系统使用默认基础URL。
+- **新增**中国AI提供商连接问题
+  - 现象：DeepSeek、Qwen、Moonshot、Zhipu AI测试失败或模型发现异常。
+  - 排查：确认对应的API密钥和基础URL配置正确，检查网络连通性和API可用性。
 
 **章节来源**
 - [open_notebook/ai/connection_tester.py](file://open_notebook/ai/connection_tester.py#L275-L299)
@@ -452,7 +466,7 @@ AI_DISC --> AI_KEY
 - [api/main.py](file://api/main.py#L97-L98)
 
 ## 结论
-通过凭证驱动的配置体系、完善的连接测试与模型发现机制，系统能够灵活支持多家AI提供商，并在本地与云端之间自由切换。**新增**的自动初始化功能进一步简化了部署流程，允许通过环境变量自动配置DeepSeek、Qwen、Moonshot、Zhipu AI等提供商。建议优先采用数据库凭证管理，配合定期模型发现与测试，确保稳定高效的AI服务能力。
+通过凭证驱动的配置体系、完善的连接测试与模型发现机制，系统能够灵活支持多家AI提供商，并在本地与云端之间自由切换。**新增**的自动初始化功能进一步简化了部署流程，允许通过环境变量自动配置DeepSeek、Qwen、Moonshot、Zhipu AI等提供商，并**新增**了增强的默认基础URL配置支持。建议优先采用数据库凭证管理，配合定期模型发现与测试，确保稳定高效的AI服务能力。
 
 ## 附录
 
@@ -475,6 +489,8 @@ AI_DISC --> AI_KEY
   - 通过环境变量自动配置：DEEPSEEK_API_KEY、DASHSCOPE_API_KEY、MOONSHOT_API_KEY、ZHIPU_API_KEY
   - 支持自定义Base URL：DEEPSEEK_BASE_URL、DASHSCOPE_BASE_URL、MOONSHOT_BASE_URL、ZHIPU_BASE_URL
   - 应用启动时自动初始化，无需手动添加凭证
+  - **新增**默认基础URL配置：DeepSeek使用https://api.deepseek.com，Qwen使用https://dashscope.aliyuncs.com/compatible-mode/v1，Moonshot使用https://api.moonshot.cn/v1，Zhipu AI使用https://open.bigmodel.cn/api/paas/v4
+  - **新增**优先级支持：中国AI提供商具有更高的优先级，确保本地部署时的性能优势
   - Qwen：支持多模态模型，适合中文场景
   - Moonshot：专注于长文本处理，适合中文长文档
   - Zhipu AI：提供多种推理模型，适合中文理解和生成
@@ -489,7 +505,8 @@ AI_DISC --> AI_KEY
 - 通过模型管理器按类型获取默认模型，或在运行时传入显式model_id进行切换。
 - 复杂提供商（Azure、Vertex、OpenAI-Compatible）通过凭证字段注入多参数，无需手动维护环境变量。
 - **新增**自动初始化功能：应用启动时自动检测环境变量并创建凭证，简化部署流程。
-- **新增**中国提供商支持：Qwen、Moonshot、Zhipu AI可直接通过环境变量配置，无需UI操作。
+- **新增**中国提供商支持：DeepSeek、Qwen、Moonshot、Zhipu AI可通过环境变量快速配置，无需UI操作。
+- **新增**优先级管理：中国AI提供商具有更高的优先级，优化本地部署性能。
 
 **章节来源**
 - [open_notebook/ai/models.py](file://open_notebook/ai/models.py#L101-L176)
@@ -502,7 +519,8 @@ AI_DISC --> AI_KEY
 - **开发环境部署**：可以使用环境变量自动初始化功能，快速启动测试环境
 - **混合部署**：部分提供商使用自动初始化，部分使用手动配置
 - **迁移策略**：从旧版本环境变量迁移到新凭证系统时，使用设置界面的迁移工具
-- **新增**中国提供商部署：Qwen、Moonshot、Zhipu AI可通过环境变量快速配置，适合国内用户部署
+- **新增**中国提供商部署：DeepSeek、Qwen、Moonshot、Zhipu AI可通过环境变量快速配置，适合国内用户部署
+- **新增**默认基础URL使用：允许系统自动使用默认基础URL，减少配置复杂度
 
 **章节来源**
 - [open_notebook/ai/key_provider.py](file://open_notebook/ai/key_provider.py#L306-L338)
@@ -511,12 +529,23 @@ AI_DISC --> AI_KEY
 
 ### 新增提供商详细配置指南
 
+#### DeepSeek（深度求索）
+- 环境变量配置
+  - DEEPSEEK_API_KEY：DeepSeek API密钥
+  - DEEPSEEK_BASE_URL：DeepSeek API基础URL（可选，默认为https://api.deepseek.com）
+- 默认模型类型
+  - 语言模型：deepseek-chat、deepseek-reasoner、deepseek-coder
+- 特点
+  - 专注推理和代码生成
+  - 支持多模态能力
+  - 适合中文场景
+
 #### Qwen（通义千问）
 - 环境变量配置
   - DASHSCOPE_API_KEY：Qwen API密钥
   - DASHSCOPE_BASE_URL：Qwen API基础URL（可选，默认为兼容模式URL）
 - 默认模型类型
-  - 语言模型：qwen-plus、qwen-max、qwen-turbo、qwen-long
+  - 语言模型：qwen-plus、qwen-max、qwen-turbo、qwen-long、qwen-coder、qwen-math、qwen-vl、qwen-audio
   - 嵌入模型：text-embedding-v1、text-embedding-v2、text-embedding-v3
 - 特点
   - 支持多模态（文本、图像、音频）
