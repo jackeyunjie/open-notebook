@@ -106,6 +106,21 @@ from open_notebook.skills.report_generator import (
     ReportGenerator,
     generate_visualized_report,
 )
+from open_notebook.skills.one_click_report_generator import (
+    OneClickReportGenerator,
+    create_study_guide,
+    create_literature_review,
+    create_research_digest,
+    create_weekly_trends,
+    create_concept_map,
+)
+from open_notebook.skills.cross_document_insights import (
+    CrossDocumentAnalyzer,
+    analyze_cross_document_themes,
+    detect_contradictions,
+    identify_research_trends,
+    generate_weekly_trends_report,
+)
 from open_notebook.skills.multi_platform_ai_researcher import (
     MultiPlatformAIResearcher,
     collect_multi_platform_ai_tools,
@@ -219,6 +234,19 @@ __all__ = [
     # Report Generation
     "ReportGenerator",
     "generate_visualized_report",
+    # One-Click Report Generator (P0)
+    "OneClickReportGenerator",
+    "create_study_guide",
+    "create_literature_review",
+    "create_research_digest",
+    "create_weekly_trends",
+    "create_concept_map",
+    # Cross-Document Insights (P0)
+    "CrossDocumentAnalyzer",
+    "analyze_cross_document_themes",
+    "detect_contradictions",
+    "identify_research_trends",
+    "generate_weekly_trends_report",
     # Multi-Platform AI Researcher
     "MultiPlatformAIResearcher",
     "collect_multi_platform_ai_tools",
