@@ -14,6 +14,7 @@
 - [open_notebook/domain/skill.py](file://open_notebook/domain/skill.py)
 - [open_notebook/skills/__init__.py](file://open_notebook/skills/__init__.py)
 - [docs/vikki的IP运营/Skill化架构设计-可复用可共享.md](file://docs/vikki的IP运营/Skill化架构设计-可复用可共享.md)
+- [docs/vikki的IP运营/第一性原理深度解析.md](file://docs/vikki的IP运营/第一性原理深度解析.md)
 </cite>
 
 ## 更新摘要
@@ -22,6 +23,7 @@
 - 新增中文内容风格（种草、干货、故事）
 - 更新默认平台选择，从海外平台改为中文平台
 - 增强平台特定功能配置，支持更多平台特性
+- 强化四象限内容策略理论支撑，提供完整的IP内容运营自动化
 
 ## 目录
 1. [项目概述](#项目概述)
@@ -762,5 +764,10 @@ Vikki内容运营技能系统通过模块化的技能架构，为内容创作者
 - **新增中文内容风格**：种草(zhongcao)、干货(ganhuo)、故事(gushi)，提供更贴近本土用户的表达方式
 - **更新默认平台选择**：从海外平台转向中文平台，提高本土化适配效果
 - **增强平台特定功能**：支持更多平台特有功能，如封面建议、关键词优化、话题标签等
+- **强化四象限理论支撑**：基于第一性原理的深度解析，提供完整的IP内容运营自动化框架
 
 该系统特别适合内容创作者、营销人员和OPC团队使用，能够显著提升内容运营效率和ROI。通过合理的技能组合和配置，用户可以构建个性化的智能内容运营工作流。
+
+**章节来源**
+- [docs/vikki的IP运营/Skill化架构设计-可复用可共享.md](file://docs/vikki的IP运营/Skill化架构设计-可复用可共享.md#L1-L800)
+- [docs/vikki的IP运营/第一性原理深度解析.md](file://docs/vikki的IP运营/第一性原理深度解析.md#L110-L665)

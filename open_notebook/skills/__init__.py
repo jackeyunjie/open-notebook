@@ -90,6 +90,17 @@ from open_notebook.skills.p3_scheduler import (
     p3_evolution_scheduler,
     setup_default_p3_schedule,
 )
+from open_notebook.skills.weekly_evolution_analyzer import WeeklyEvolutionAnalyzer, analyze_evolution
+from open_notebook.skills.weekly_evolution_scheduler import (
+    WeeklyEvolutionScheduler,
+    run_weekly_evolution,
+    start_weekly_scheduler,
+)
+from open_notebook.skills.multi_platform_ai_researcher import (
+    MultiPlatformAIResearcher,
+    collect_multi_platform_ai_tools,
+)
+from open_notebook.skills.multi_platform_ai_researcher.daily_report_generator import DailyReportGenerator, generate_daily_report
 # Note: xiaohongshu_researcher is loaded lazily to avoid circular dependency
 # from open_notebook.skills.xiaohongshu_researcher import XiaohongshuResearcherSkill, research_xiaohongshu
 
@@ -184,6 +195,18 @@ __all__ = [
     "EvolutionScheduleType",
     "p3_evolution_scheduler",
     "setup_default_p3_schedule",
+    # Weekly Evolution System
+    "WeeklyEvolutionAnalyzer",
+    "analyze_evolution",
+    "WeeklyEvolutionScheduler",
+    "run_weekly_evolution",
+    "start_weekly_scheduler",
+    # Multi-Platform AI Researcher
+    "MultiPlatformAIResearcher",
+    "collect_multi_platform_ai_tools",
+    # Daily Report Generator
+    "DailyReportGenerator",
+    "generate_daily_report",
     # Xiaohongshu researcher skill (lazy loaded)
     # "XiaohongshuResearcherSkill",
     # "research_xiaohongshu",

@@ -326,3 +326,24 @@ class DailyReportGenerator:
         
         logger.info(f"Report exported to {output_path}")
         return output_path
+
+
+# ============================================================================
+# Convenience Function
+# ============================================================================
+
+def generate_daily_report(
+    collected_items: List[Dict[str, Any]],
+    date: Optional[datetime] = None
+) -> Dict[str, Any]:
+    """Convenience function to generate daily report.
+    
+    Args:
+        collected_items: List of collected content items
+        date: Report date (default: today)
+        
+    Returns:
+        Structured report dictionary
+    """
+    generator = DailyReportGenerator()
+    return generator.generate(collected_items, date)

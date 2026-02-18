@@ -9,6 +9,14 @@
 - [open_notebook/ai/provision.py](file://open_notebook/ai/provision.py)
 - [open_notebook/domain/credential.py](file://open_notebook/domain/credential.py)
 - [open_notebook/domain/provider_config.py](file://open_notebook/domain/provider_config.py)
+- [open_notebook/config.py](file://open_notebook/config.py)
+- [open_notebook/graphs/chat.py](file://open_notebook/graphs/chat.py)
+- [open_notebook/graphs/source_chat.py](file://open_notebook/graphs/source_chat.py)
+- [open_notebook/utils/graph_utils.py](file://open_notebook/utils/graph_utils.py)
+- [api/routers/chat.py](file://api/routers/chat.py)
+- [api/routers/source_chat.py](file://api/routers/source_chat.py)
+- [prompts/chat/system.jinja](file://prompts/chat/system.jinja)
+- [prompts/source_chat/system.jinja](file://prompts/source_chat/system.jinja)
 - [api/credentials_service.py](file://api/credentials_service.py)
 - [api/models_service.py](file://api/models_service.py)
 - [docs/4-AI-PROVIDERS/index.md](file://docs/4-AI-PROVIDERS/index.md)
@@ -18,11 +26,10 @@
 
 ## 更新摘要
 **变更内容**
-- 新增Qwen、Moonshot、Zhipu AI提供商的完整集成支持
-- 更新多AI提供商支持与密钥管理章节以包含新的提供商
-- 新增模型发现机制章节中的新提供商支持
-- 更新连接测试与错误归一化章节以包含新的提供商测试
-- 更新不同AI提供商的集成要点以涵盖新提供商的特性
+- 新增集中化配置常量：chat.py和source_chat.py现在使用集中化的配置常量，确保不同聊天上下文的一致行为和更好的资源管理
+- 更新聊天图配置章节以反映配置常量的集中化管理
+- 新增配置管理策略章节，详细说明DEFAULT_MAX_TOKENS和SOURCE_CHAT_MAX_TOKENS的使用
+- 更新模型配置与参数调优章节以包含新的配置常量
 
 ## 目录
 1. [简介](#简介)
@@ -39,12 +46,14 @@
 ## 简介
 本文件系统性梳理了Open Notebook中AI服务集成的设计与实现，覆盖多AI提供商支持、模型发现机制、密钥与配置管理、连接测试、模型选择与默认模型、以及前端与后端的交互流程。文档同时给出异步处理、超时与重试策略建议，并提供针对不同提供商的集成要点、最佳实践与排障指引。
 
-**更新** 新增Qwen、Moonshot、Zhipu AI提供商的完整集成支持，扩展了多提供商生态系统。
+**更新** 新增集中化配置常量的聊天图改进，确保不同聊天上下文的一致行为和更好的资源管理。
 
 ## 项目结构
 围绕AI服务的核心模块分布如下：
 - 领域层：凭证与配置模型（数据库记录）
 - AI基础设施层：密钥提供、模型发现、连接测试、模型管理与实例化
+- 配置管理层：集中化配置常量管理
+- 图形执行层：聊天图与源聊天图的统一配置管理
 - 服务层：API业务逻辑（凭据测试、模型发现、迁移等）
 - 前端：设置界面与错误提示（连接失败、重试）
 
@@ -61,9 +70,19 @@ CT["connection_tester 连接测试"]
 AM["ai/models 模型管理"]
 PR["ai/provision 模型预配"]
 end
+subgraph "配置管理层"
+CFG["config.py 集中配置"]
+end
+subgraph "图形执行层"
+CHAT["graphs/chat.py 聊天图"]
+SCHAT["graphs/source_chat.py 源聊天图"]
+GU["utils/graph_utils.py 图形工具"]
+end
 subgraph "服务层"
 CS["credentials_service 凭据服务"]
 MS["models_service 模型服务"]
+AR["routers/chat.py 聊天路由"]
+ASR["routers/source_chat.py 源聊天路由"]
 end
 subgraph "前端"
 FE["设置界面/错误提示"]
@@ -74,6 +93,10 @@ KP --> AM
 MD --> CS
 CT --> CS
 AM --> PR
+CFG --> CHAT
+CFG --> SCHAT
+CHAT --> AR
+SCHAT --> ASR
 CS --> FE
 MS --> FE
 ```
@@ -86,6 +109,12 @@ MS --> FE
 - [open_notebook/ai/connection_tester.py](file://open_notebook/ai/connection_tester.py#L1-L439)
 - [open_notebook/ai/models.py](file://open_notebook/ai/models.py#L1-L267)
 - [open_notebook/ai/provision.py](file://open_notebook/ai/provision.py#L1-L61)
+- [open_notebook/config.py](file://open_notebook/config.py#L1-L26)
+- [open_notebook/graphs/chat.py](file://open_notebook/graphs/chat.py#L1-L67)
+- [open_notebook/graphs/source_chat.py](file://open_notebook/graphs/source_chat.py#L1-L196)
+- [open_notebook/utils/graph_utils.py](file://open_notebook/utils/graph_utils.py#L1-L24)
+- [api/routers/chat.py](file://api/routers/chat.py#L1-L517)
+- [api/routers/source_chat.py](file://api/routers/source_chat.py#L1-L550)
 - [api/credentials_service.py](file://api/credentials_service.py#L1-L884)
 - [api/models_service.py](file://api/models_service.py#L1-L113)
 
@@ -97,12 +126,20 @@ MS --> FE
 - [open_notebook/ai/connection_tester.py](file://open_notebook/ai/connection_tester.py#L1-L439)
 - [open_notebook/ai/models.py](file://open_notebook/ai/models.py#L1-L267)
 - [open_notebook/ai/provision.py](file://open_notebook/ai/provision.py#L1-L61)
+- [open_notebook/config.py](file://open_notebook/config.py#L1-L26)
+- [open_notebook/graphs/chat.py](file://open_notebook/graphs/chat.py#L1-L67)
+- [open_notebook/graphs/source_chat.py](file://open_notebook/graphs/source_chat.py#L1-L196)
+- [open_notebook/utils/graph_utils.py](file://open_notebook/utils/graph_utils.py#L1-L24)
+- [api/routers/chat.py](file://api/routers/chat.py#L1-L517)
+- [api/routers/source_chat.py](file://api/routers/source_chat.py#L1-L550)
 - [api/credentials_service.py](file://api/credentials_service.py#L1-L884)
 - [api/models_service.py](file://api/models_service.py#L1-L113)
 
 ## 核心组件
 - 密钥与配置提供
   - 数据库优先的密钥提供器，支持简单与复杂提供商（如Azure、Vertex、OpenAI兼容）的环境变量注入。
+- 集中式配置管理
+  - 通过config.py统一管理AI模型配置常量，包括DEFAULT_MAX_TOKENS和SOURCE_CHAT_MAX_TOKENS，确保聊天图的一致行为。
 - 模型发现
   - 自动从各提供商拉取可用模型列表，按名称模式分类为语言、嵌入、语音识别/合成等类型，并可批量注册到数据库。
 - 连接测试
@@ -116,7 +153,7 @@ MS --> FE
 - 模型服务
   - API封装的模型查询与默认模型设置更新。
 
-**更新** 新增Qwen、Moonshot、Zhipu AI提供商的模型发现和连接测试支持。
+**更新** 新增集中化配置常量管理，确保不同聊天上下文的一致行为和更好的资源管理。
 
 **章节来源**
 - [open_notebook/ai/key_provider.py](file://open_notebook/ai/key_provider.py#L23-L298)
@@ -124,17 +161,19 @@ MS --> FE
 - [open_notebook/ai/connection_tester.py](file://open_notebook/ai/connection_tester.py#L170-L439)
 - [open_notebook/ai/models.py](file://open_notebook/ai/models.py#L97-L267)
 - [open_notebook/ai/provision.py](file://open_notebook/ai/provision.py#L9-L61)
+- [open_notebook/config.py](file://open_notebook/config.py#L19-L26)
 - [api/credentials_service.py](file://api/credentials_service.py#L314-L884)
 - [api/models_service.py](file://api/models_service.py#L1-L113)
 
 ## 架构总览
-下图展示从"凭据—密钥—模型—实例"的完整链路，以及服务层如何协调发现与测试。
+下图展示从"凭据—密钥—配置—模型—实例"的完整链路，以及服务层如何协调发现与测试。
 
 ```mermaid
 sequenceDiagram
 participant UI as "前端设置界面"
 participant SVC as "凭据服务(credentials_service)"
 participant KEY as "密钥提供(key_provider)"
+participant CFG as "配置管理(config.py)"
 participant DISC as "模型发现(model_discovery)"
 participant TEST as "连接测试(connection_tester)"
 participant DB as "数据库(Credential/Model)"
@@ -143,6 +182,8 @@ UI->>SVC : 添加/编辑凭据
 SVC->>KEY : provision_provider_keys(provider)
 KEY->>DB : 读取Credential(数据库优先)
 KEY-->>MF : 注入环境变量/配置
+SVC->>CFG : 获取配置常量
+CFG-->>SVC : 返回DEFAULT_MAX_TOKENS/SOURCE_CHAT_MAX_TOKENS
 SVC->>DISC : discover_with_config(provider, config)
 DISC->>DB : 批量查询已存在模型
 DISC-->>UI : 返回模型清单
@@ -160,6 +201,7 @@ MF-->>UI : 返回LangChain适配器
 **图示来源**
 - [api/credentials_service.py](file://api/credentials_service.py#L356-L466)
 - [open_notebook/ai/key_provider.py](file://open_notebook/ai/key_provider.py#L236-L271)
+- [open_notebook/config.py](file://open_notebook/config.py#L23-L26)
 - [open_notebook/ai/model_discovery.py](file://open_notebook/ai/model_discovery.py#L468-L757)
 - [open_notebook/ai/connection_tester.py](file://open_notebook/ai/connection_tester.py#L367-L439)
 - [open_notebook/ai/models.py](file://open_notebook/ai/models.py#L101-L176)
@@ -243,6 +285,39 @@ NewProviders --> Credential : "支持"
 - [open_notebook/domain/provider_config.py](file://open_notebook/domain/provider_config.py#L175-L445)
 - [api/credentials_service.py](file://api/credentials_service.py#L24-L307)
 
+### 集中式配置管理与聊天图优化
+- 配置常量集中化
+  - DEFAULT_MAX_TOKENS（8192）用于普通聊天图，SOURCE_CHAT_MAX_TOKENS（50000）用于源聊天图，确保不同上下文的资源管理一致性。
+- 聊天图配置优化
+  - chat.py使用DEFAULT_MAX_TOKENS确保标准聊天上下文的合理令牌限制。
+  - source_chat.py使用SOURCE_CHAT_MAX_TOKENS允许更大的上下文窗口以处理源文档分析。
+- 统一资源管理
+  - 通过集中配置常量，确保不同聊天图在资源使用上的一致行为，避免内存泄漏和性能问题。
+
+**更新** 新增集中化配置常量管理，确保不同聊天上下文的一致行为和更好的资源管理。
+
+```mermaid
+flowchart TD
+Start(["配置初始化"]) --> LoadCFG["加载config.py"]
+LoadCFG --> DefineDefaults["定义DEFAULT_MAX_TOKENS=8192"]
+DefineDefaults --> DefineSource["定义SOURCE_CHAT_MAX_TOKENS=50000"]
+DefineSource --> ChatGraph["chat.py使用DEFAULT_MAX_TOKENS"]
+DefineSource --> SourceGraph["source_chat.py使用SOURCE_CHAT_MAX_TOKENS"]
+ChatGraph --> Unified["统一资源配置"]
+SourceGraph --> Unified
+Unified --> Runtime["运行时应用"]
+```
+
+**图示来源**
+- [open_notebook/config.py](file://open_notebook/config.py#L23-L26)
+- [open_notebook/graphs/chat.py](file://open_notebook/graphs/chat.py#L36-L40)
+- [open_notebook/graphs/source_chat.py](file://open_notebook/graphs/source_chat.py#L51-L55)
+
+**章节来源**
+- [open_notebook/config.py](file://open_notebook/config.py#L19-L26)
+- [open_notebook/graphs/chat.py](file://open_notebook/graphs/chat.py#L12-L40)
+- [open_notebook/graphs/source_chat.py](file://open_notebook/graphs/source_chat.py#L12-L55)
+
 ### 模型发现机制
 - 分类与命名规则
   - 通过模型名模式将模型归类为语言、嵌入、语音识别或语音合成；部分提供商（如Anthropic、Voyage、ElevenLabs）使用静态列表。
@@ -315,6 +390,11 @@ SVC-->>UI : 结果
   - provision_langchain_model根据内容token数阈值自动切换"大上下文"模型；否则按显式model_id或默认类型选择。
 - 参数透传
   - ModelManager在创建模型时将kwargs合并到配置，便于温度、最大长度等参数调优。
+- 配置常量应用
+  - chat.py使用DEFAULT_MAX_TOKENS（8192）限制标准聊天上下文的令牌数。
+  - source_chat.py使用SOURCE_CHAT_MAX_TOKENS（50000）为源文档分析提供更大的上下文窗口。
+
+**更新** 新增配置常量的应用，确保不同聊天上下文的合理令牌限制。
 
 ```mermaid
 flowchart TD
@@ -333,10 +413,12 @@ H --> I["返回LangChain适配器"]
 **图示来源**
 - [open_notebook/ai/provision.py](file://open_notebook/ai/provision.py#L9-L61)
 - [open_notebook/ai/models.py](file://open_notebook/ai/models.py#L177-L264)
+- [open_notebook/config.py](file://open_notebook/config.py#L23-L26)
 
 **章节来源**
 - [open_notebook/ai/models.py](file://open_notebook/ai/models.py#L61-L267)
 - [open_notebook/ai/provision.py](file://open_notebook/ai/provision.py#L9-L61)
+- [open_notebook/config.py](file://open_notebook/config.py#L19-L26)
 
 ### 异步处理、超时与重试
 - 异步HTTP请求
@@ -370,6 +452,8 @@ H --> I["返回LangChain适配器"]
 ## 依赖关系分析
 - 模块耦合
   - ModelManager依赖esperanto工厂与数据库仓库；KeyProvider与Credential紧密耦合；CredentialsService横跨凭据、发现与迁移。
+- 配置管理
+  - chat.py和source_chat.py都依赖config.py中的配置常量，确保统一的资源管理策略。
 - 外部依赖
   - httpx用于异步HTTP；esperanto作为AI模型抽象工厂；loguru负责日志。
 - 循环依赖
@@ -381,6 +465,8 @@ KP["key_provider"] --> AM["ai/models"]
 MD["model_discovery"] --> CS["credentials_service"]
 CT["connection_tester"] --> CS
 AM --> PR["ai/provision"]
+CFG["config.py"] --> CHAT["graphs/chat.py"]
+CFG --> SCHAT["graphs/source_chat.py"]
 CS --> FE["前端设置界面"]
 MS["models_service"] --> FE
 ```
@@ -389,6 +475,9 @@ MS["models_service"] --> FE
 - [open_notebook/ai/key_provider.py](file://open_notebook/ai/key_provider.py#L236-L271)
 - [open_notebook/ai/models.py](file://open_notebook/ai/models.py#L101-L176)
 - [open_notebook/ai/provision.py](file://open_notebook/ai/provision.py#L9-L61)
+- [open_notebook/config.py](file://open_notebook/config.py#L23-L26)
+- [open_notebook/graphs/chat.py](file://open_notebook/graphs/chat.py#L12-L13)
+- [open_notebook/graphs/source_chat.py](file://open_notebook/graphs/source_chat.py#L12-L13)
 - [open_notebook/ai/model_discovery.py](file://open_notebook/ai/model_discovery.py#L608-L724)
 - [open_notebook/ai/connection_tester.py](file://open_notebook/ai/connection_tester.py#L170-L439)
 - [api/credentials_service.py](file://api/credentials_service.py#L356-L466)
@@ -400,6 +489,9 @@ MS["models_service"] --> FE
 - [open_notebook/ai/provision.py](file://open_notebook/ai/provision.py#L1-L61)
 - [open_notebook/ai/model_discovery.py](file://open_notebook/ai/model_discovery.py#L1-L757)
 - [open_notebook/ai/connection_tester.py](file://open_notebook/ai/connection_tester.py#L1-L439)
+- [open_notebook/config.py](file://open_notebook/config.py#L1-L26)
+- [open_notebook/graphs/chat.py](file://open_notebook/graphs/chat.py#L1-L67)
+- [open_notebook/graphs/source_chat.py](file://open_notebook/graphs/source_chat.py#L1-L196)
 - [api/credentials_service.py](file://api/credentials_service.py#L1-L884)
 - [api/models_service.py](file://api/models_service.py#L1-L113)
 
@@ -410,12 +502,17 @@ MS["models_service"] --> FE
   - 设置合理超时，结合客户端重试策略提升稳定性。
 - 模型选择
   - 根据内容长度自动切换大上下文模型，避免token溢出导致失败。
+- 配置常量优化
+  - 通过集中化配置常量，确保不同聊天图在资源使用上的一致性，优化内存和CPU使用。
 - 加密与安全
   - API Key加密存储，SSRF校验保护自托管URL。
+
+**更新** 新增配置常量优化，确保不同聊天上下文的资源管理一致性。
 
 **章节来源**
 - [open_notebook/ai/model_discovery.py](file://open_notebook/ai/model_discovery.py#L708-L724)
 - [open_notebook/ai/provision.py](file://open_notebook/ai/provision.py#L22-L33)
+- [open_notebook/config.py](file://open_notebook/config.py#L19-L26)
 - [api/credentials_service.py](file://api/credentials_service.py#L85-L185)
 
 ## 故障排除指南
@@ -431,8 +528,11 @@ MS["models_service"] --> FE
   - 检查提供商状态；重试操作；更换模型/提供商；确认网络可达。
 - "聊天无历史记忆"
   - 确保在同一对话中进行，或为对话命名以保持上下文。
+- **新增配置相关问题**
+  - "令牌限制异常"：检查DEFAULT_MAX_TOKENS和SOURCE_CHAT_MAX_TOKENS配置是否合理。
+  - "内存不足"：调整配置常量以适应系统资源限制。
 
-**更新** 新增Qwen、Moonshot、Zhipu AI提供商的故障排除指导，包括各提供商特有的问题和解决方案。
+**更新** 新增配置相关问题的故障排除指导，包括令牌限制和内存不足问题。
 
 **章节来源**
 - [docs/6-TROUBLESHOOTING/ai-chat-issues.md](file://docs/6-TROUBLESHOOTING/ai-chat-issues.md#L1-L443)
@@ -440,15 +540,17 @@ MS["models_service"] --> FE
 - [docs/4-AI-PROVIDERS/index.md](file://docs/4-AI-PROVIDERS/index.md#L1-L200)
 
 ## 结论
-该AI服务集成为多提供商、多模态提供了统一的密钥管理、模型发现与连接测试能力。通过数据库驱动的凭据体系、清晰的模型分类与默认配置、以及完善的错误归一化与SSRF防护，系统在易用性与安全性之间取得平衡。**更新** 新增Qwen、Moonshot、Zhipu AI提供商的完整集成，进一步丰富了多提供商生态系统。建议在生产环境中配合合理的超时与重试策略、成本控制与模型选择策略，持续优化用户体验与资源利用率。
+该AI服务集成为多提供商、多模态提供了统一的密钥管理、模型发现与连接测试能力。通过数据库驱动的凭据体系、清晰的模型分类与默认配置、以及完善的错误归一化与SSRF防护，系统在易用性与安全性之间取得平衡。**更新** 新增集中化配置常量管理，确保不同聊天上下文的一致行为和更好的资源管理，进一步提升了系统的稳定性和可维护性。建议在生产环境中配合合理的超时与重试策略、成本控制与模型选择策略，持续优化用户体验与资源利用率。
 
 ## 附录
 - 快速参考
   - 设置与配置：参阅"AI Providers配置指南"，完成凭据添加、连接测试、模型发现与注册。
   - 比较与选型：参阅"AI Providers对比与选择指南"，按速度、成本、隐私、企业合规等维度选择。
   - 排障：遇到问题先查看"AI与聊天问题"指南，按症状定位解决方案。
+  - 配置管理：检查config.py中的DEFAULT_MAX_TOKENS和SOURCE_CHAT_MAX_TOKENS配置，确保符合系统资源限制。
 
 **章节来源**
 - [docs/5-CONFIGURATION/ai-providers.md](file://docs/5-CONFIGURATION/ai-providers.md#L1-L468)
 - [docs/4-AI-PROVIDERS/index.md](file://docs/4-AI-PROVIDERS/index.md#L1-L200)
 - [docs/6-TROUBLESHOOTING/ai-chat-issues.md](file://docs/6-TROUBLESHOOTING/ai-chat-issues.md#L1-L443)
+- [open_notebook/config.py](file://open_notebook/config.py#L19-L26)

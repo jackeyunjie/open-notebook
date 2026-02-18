@@ -108,7 +108,8 @@ content = await create_content_project(
 
 from .multi_platform_ai_researcher import (
     MultiPlatformAIResearcher,
-    research_ai_tools
+    research_ai_tools,
+    collect_multi_platform_ai_tools
 )
 from .platform_content_optimizer import (
     PlatformContentOptimizer,
@@ -131,6 +132,7 @@ __all__ = [
     # Core researcher
     "MultiPlatformAIResearcher",
     "research_ai_tools",
+    "collect_multi_platform_ai_tools",
     # Platform optimizer
     "PlatformContentOptimizer",
     "optimize_for_platform",

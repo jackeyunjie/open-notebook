@@ -998,3 +998,33 @@ async def research_ai_tools(
         'generate_report': generate_report,
         'save_to_notebook': save_to_notebook
     })
+
+
+async def collect_multi_platform_ai_tools(
+    platforms: Optional[List[str]] = None,
+    keywords: Optional[List[str]] = None,
+    max_results: int = 20,
+    generate_report: bool = True,
+    save_to_notebook: bool = False
+) -> Dict[str, Any]:
+    """Convenience function to run multi-platform AI tools research.
+    
+    This is an alias for research_ai_tools with a more descriptive name.
+    
+    Args:
+        platforms: Platforms to search (default: all supported)
+        keywords: Keywords to search (default: AI tools keywords)
+        max_results: Max results per platform
+        generate_report: Whether to generate daily report
+        save_to_notebook: Whether to save to notebook
+        
+    Returns:
+        Research results
+    """
+    return await research_ai_tools(
+        platforms=platforms,
+        keywords=keywords,
+        max_results=max_results,
+        generate_report=generate_report,
+        save_to_notebook=save_to_notebook
+    )
