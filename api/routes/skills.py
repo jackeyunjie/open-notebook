@@ -2,6 +2,51 @@
 Skills API Routes - P0/P1/C/B/A 功能 API 端点
 
 提供 RESTful API 供前端调用所有 Skill 功能
+
+## 功能分类
+
+### P0 - 核心功能
+- **一键报告生成器**: 基于 Notebook 内容自动生成结构化研究报告
+- **跨文档洞察**: 分析多个文档之间的共性、矛盾和趋势
+
+### P1 - 体验增强
+- **可视化知识图谱**: 思维导图、时间线、网络图、统计图表
+- **批量导入工具**: 文件夹、URL、Zotero、Mendeley 批量导入
+
+### C - 性能优化
+- **缓存系统**: LRU 内存缓存，自动过期
+- **查询优化**: 慢查询检测、批量操作
+- **性能监控**: 实时指标追踪
+
+### B - UI 集成
+- **操作管理**: 预配置的快捷按钮
+- **通知系统**: 实时消息推送
+- **进度追踪**: 任务进度实时监控
+
+### A - 协作功能 (P2)
+- **Notebook 共享**: 邀请制协作
+- **权限管理**: READ/WRITE/ADMIN/OWNER 四级权限
+- **评论批注**: 线程化讨论
+- **实时会话**: 多用户同时编辑
+
+## 使用示例
+
+```bash
+# 生成学习指南
+curl -X POST http://localhost:8000/api/v1/skills/reports/generate \
+  -H "Content-Type: application/json" \
+  -d '{"notebook_id": "xxx", "report_type": "study_guide"}'
+
+# 批量导入 PDF
+curl -X POST http://localhost:8000/api/v1/skills/import/batch \
+  -H "Content-Type: application/json" \
+  -d '{"notebook_id": "xxx", "import_type": "folder", "source_path": "/path/to/pdfs"}'
+
+# 创建思维导图
+curl -X POST http://localhost:8000/api/v1/skills/visualizations/create \
+  -H "Content-Type: application/json" \
+  -d '{"notebook_id": "xxx", "chart_type": "mindmap"}'
+```
 """
 
 from typing import Any, Dict, List, Optional
@@ -57,7 +102,11 @@ from open_notebook.skills.visual_knowledge_graph import (
 # Router Setup
 # ============================================================================
 
-router = APIRouter(prefix="/api/v1/skills", tags=["skills"])
+router = APIRouter(
+    prefix="/api/v1/skills",
+    tags=["Skills - P0/P1/C/B/A 功能"],
+    responses={404: {"description": "Not found"}},
+)
 
 # 全局性能优化器实例
 perf_optimizer = PerformanceOptimizer()
@@ -69,25 +118,84 @@ perf_optimizer = PerformanceOptimizer()
 
 
 class ReportGenerationRequest(BaseModel):
-    """报告生成请求"""
+    """报告生成请求
+    
+    用于一键生成各种类型的研究报告
+    
+    ## 支持的报告类型
+    - `study_guide`: 学习指南 - 适合快速了解某个主题
+    - `literature_review`: 文献综述 - 学术研究必备
+    - `research_digest`: 研究简报 - 简洁的研究总结
+    - `weekly_trends`: 周度趋势 - 追踪最新研究动态
+    - `concept_map`: 概念图谱 - 可视化知识结构
+    
+    ## 使用示例
+    ```json
+    {
+        "notebook_id": "nb_123456",
+        "report_type": "study_guide",
+        "source_ids": ["src_1", "src_2"],
+        "title": "自定义标题（可选）"
+    }
+    ```
+    """
 
-    notebook_id: str = Field(..., description="Notebook ID")
+    notebook_id: str = Field(
+        ...,
+        description="Notebook ID",
+        example="nb_123456",
+        min_length=1,
+    )
     report_type: str = Field(
         ...,
         description="报告类型",
         examples=["study_guide", "literature_review", "research_digest", "weekly_trends", "concept_map"],
+        pattern=r"^(study_guide|literature_review|research_digest|weekly_trends|concept_map)$",
     )
-    source_ids: Optional[List[str]] = Field(None, description="指定源列表")
-    title: Optional[str] = Field(None, description="自定义标题")
+    source_ids: Optional[List[str]] = Field(
+        None,
+        description="指定源列表（可选，默认使用所有源）",
+        example=["src_1", "src_2", "src_3"],
+    )
+    title: Optional[str] = Field(
+        None,
+        description="自定义标题（可选，默认自动生成）",
+        example="人工智能研究进展",
+        max_length=200,
+    )
 
 
 class ReportGenerationResponse(BaseModel):
-    """报告生成响应"""
+    """报告生成响应
+    
+    ## 响应字段说明
+    - `success`: 操作是否成功
+    - `note_id`: 生成的 Note ID（可在前端查看）
+    - `message`: 提示信息
+    - `report_type`: 报告类型
+    
+    ## 成功响应示例
+    ```json
+    {
+        "success": true,
+        "note_id": "note_789",
+        "message": "Report generated successfully: study_guide",
+        "report_type": "study_guide"
+    }
+    ```
+    
+    ## 失败响应示例
+    ```json
+    {
+        "detail": "Notebook not_found: nb_invalid"
+    }
+    ```
+    """
 
-    success: bool
-    note_id: Optional[str]
-    message: str
-    report_type: str
+    success: bool = Field(..., description="操作是否成功", example=True)
+    note_id: Optional[str] = Field(None, description="生成的 Note ID", example="note_789")
+    message: str = Field(..., description="提示信息", example="Report generated successfully")
+    report_type: str = Field(..., description="报告类型", example="study_guide")
 
 
 class VisualizationRequest(BaseModel):
@@ -182,7 +290,101 @@ class CommentRequest(BaseModel):
 # ============================================================================
 
 
-@router.post("/reports/generate", response_model=ReportGenerationResponse)
+@router.post(
+    "/reports/generate",
+    response_model=ReportGenerationResponse,
+    summary="一键生成研究报告",
+    description="""
+    ## 功能说明
+    
+    基于 Notebook 内容，自动生成结构化研究报告。
+    
+    ### 支持的报告类型
+    
+    1. **Study Guide (学习指南)**
+       - 适合快速了解某个主题
+       - 包含核心概念、关键要点、自测题
+    
+    2. **Literature Review (文献综述)**
+       - 学术研究必备
+       - 包含研究背景、方法对比、主要发现
+    
+    3. **Research Digest (研究简报)**
+       - 简洁的研究总结
+       - 包含核心观点、数据支撑、行动建议
+    
+    4. **Weekly Trends (周度趋势)**
+       - 追踪最新研究动态
+       - 包含新兴主题、热度变化、趋势预测
+    
+    5. **Concept Map (概念图谱)**
+       - 可视化知识结构
+       - 包含概念关系、层级结构、关联强度
+    
+    ### 处理流程
+    
+    1. 获取指定 Source 内容
+    2. AI 分析和提取关键信息
+    3. 按照模板生成结构化报告
+    4. 保存为 Note 并返回 ID
+    
+    ### 性能提示
+    
+    - 处理时间取决于 Source 数量和内容长度
+    - 建议每次不超过 20 个 Source
+    - 大型报告建议使用异步任务
+    
+    ### 相关链接
+    
+    - [查看生成的 Note](#/notebooks/get_note)
+    - [列出所有报告](#/notes/list_notes)
+    """,
+    responses={
+        200: {
+            "description": "报告生成成功",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "success": True,
+                        "note_id": "note_abc123",
+                        "message": "Report generated successfully: study_guide",
+                        "report_type": "study_guide",
+                    }
+                }
+            }
+        },
+        400: {
+            "description": "请求参数错误",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Invalid report type: invalid_type"
+                    }
+                }
+            }
+        },
+        404: {
+            "description": "Notebook 不存在",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Notebook not found: nb_invalid"
+                    }
+                }
+            }
+        },
+        500: {
+            "description": "服务器错误",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Failed to generate report: ..."
+                    }
+                }
+            }
+        },
+    },
+)
 async def generate_report(request: ReportGenerationRequest):
     """一键生成报告"""
     try:
