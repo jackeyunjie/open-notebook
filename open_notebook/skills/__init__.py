@@ -121,6 +121,20 @@ from open_notebook.skills.cross_document_insights import (
     identify_research_trends,
     generate_weekly_trends_report,
 )
+from open_notebook.skills.visual_knowledge_graph import (
+    VisualKnowledgeGraphGenerator,
+    create_mind_map,
+    create_timeline,
+    create_network_graph,
+    create_topic_chart,
+)
+from open_notebook.skills.batch_importer import (
+    BatchImporter,
+    batch_import_files,
+    batch_import_urls,
+    import_zotero_library,
+    import_mendeley_library,
+)
 from open_notebook.skills.multi_platform_ai_researcher import (
     MultiPlatformAIResearcher,
     collect_multi_platform_ai_tools,
@@ -247,6 +261,18 @@ __all__ = [
     "detect_contradictions",
     "identify_research_trends",
     "generate_weekly_trends_report",
+    # Visual Knowledge Graph (P1)
+    "VisualKnowledgeGraphGenerator",
+    "create_mind_map",
+    "create_timeline",
+    "create_network_graph",
+    "create_topic_chart",
+    # Batch Importer (P1)
+    "BatchImporter",
+    "batch_import_files",
+    "batch_import_urls",
+    "import_zotero_library",
+    "import_mendeley_library",
     # Multi-Platform AI Researcher
     "MultiPlatformAIResearcher",
     "collect_multi_platform_ai_tools",
