@@ -61,13 +61,7 @@ async def lifespan(app: FastAPI):
     Runs database migrations automatically on startup.
     """
     import os
-    from api.routes import skills as skills_p0p1_routes  # P0/P1/C/B/A 功能端点
-    
-    # Register routers (must be after app creation)
-    app.include_router(skills.router)  # General skill management
-    app.include_router(skills_p0p1_routes.router)  # P0/P1/C/B/A features
-    logger.info("P0/P1/C/B/A routes registered successfully")
-    
+
     # Startup: Security checks
     logger.info("Starting API initialization...")
 
@@ -259,6 +253,12 @@ app.include_router(chat.router, prefix="/api", tags=["chat"])
 app.include_router(source_chat.router, prefix="/api", tags=["source-chat"])
 app.include_router(credentials.router, prefix="/api", tags=["credentials"])
 app.include_router(skills.router, prefix="/api", tags=["skills"])
+
+# P0/P1/C/B/A 功能路由
+from api.routes import skills as skills_p0p1_routes
+app.include_router(skills_p0p1_routes.router)
+logger.info("P0/P1/C/B/A routes registered successfully")
+
 app.include_router(workflows.router, prefix="/api", tags=["workflows"])
 app.include_router(workflow_templates.router, prefix="/api", tags=["workflow-templates"])
 app.include_router(workflow_builder.router, prefix="/api", tags=["workflow-builder"])

@@ -1,0 +1,14 @@
+---
+name: yuanbao-converter
+description: 将元宝转来的文稿转换为带 AI 总结的 Markdown 文档，保存到指定文件夹
+version: 1.0.0
+author: Open Notebook Team
+entry: skill.py
+---
+
+# 配置说明
+
+- **name**: 技能名称（用于 `claude skills add` 命令）
+- **description**: 技能描述
+- **version**: 版本号
+- **entry**: Python 入口文件
