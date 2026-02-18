@@ -47,6 +47,8 @@ import api.routers.skills as skills
 from open_notebook.database.async_migrate import AsyncMigrationManager
 from open_notebook.utils.encryption import get_secret_from_env
 
+app.include_router(skills.router)
+
 # Import commands to register them in the API process
 try:
     logger.info("Commands imported in API process")

@@ -136,6 +136,7 @@ from open_notebook.skills.batch_importer import (
     import_mendeley_library,
 )
 from open_notebook.skills.performance_optimizer import (
+    PerformanceOptimizer,
     PerformanceMonitor,
     DatabaseOptimizer,
     AsyncTaskQueue,
@@ -306,6 +307,7 @@ __all__ = [
     "import_zotero_library",
     "import_mendeley_library",
     # Performance Optimizer (C)
+    "PerformanceOptimizer",
     "PerformanceMonitor",
     "DatabaseOptimizer",
     "AsyncTaskQueue",

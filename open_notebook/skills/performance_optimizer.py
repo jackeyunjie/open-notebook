@@ -417,7 +417,76 @@ perf_monitor = PerformanceMonitor()
 
 
 # ============================================================================
-# Convenience Functions
+# Unified Performance Optimizer Facade
+# ============================================================================
+
+class PerformanceOptimizer:
+    """性能优化器统一入口（Facade Pattern）"""
+    
+    def __init__(self, cache_size: int = 500, max_concurrent_tasks: int = 10):
+        """初始化性能优化器
+        
+        Args:
+            cache_size: LRU 缓存大小
+            max_concurrent_tasks: 最大并发任务数
+        """
+        self.cache = LRUCache(max_size=cache_size)
+        self.task_queue = AsyncTaskQueue(max_concurrent=max_concurrent_tasks)
+        self.db_optimizer = DatabaseOptimizer()
+        self.monitor = PerformanceMonitor()
+        
+    async def optimize_query(
+        self,
+        query_func: Callable,
+        *args,
+        use_cache: bool = True,
+        cache_ttl: int = 300,
+        **kwargs
+    ) -> Any:
+        """优化查询（带缓存）"""
+        return await self.db_optimizer.execute_optimized(
+            query_func,
+            *args,
+            use_cache=use_cache,
+            cache_ttl=cache_ttl,
+            **kwargs
+        )
+    
+    async def batch_process(self, items: List[Any], processor: Callable) -> List[Any]:
+        """批量处理（并发控制）"""
+        for item in items:
+            await self.task_queue.add_task(processor(item))
+        return await self.task_queue.run_all()
+    
+    def cache_set(self, key: str, value: Any, ttl: int = 300):
+        """设置缓存"""
+        self.cache.set(key, value, ttl_seconds=ttl)
+    
+    def cache_get(self, key: str) -> Optional[Any]:
+        """获取缓存"""
+        return self.cache.get(key)
+    
+    def record_metric(self, metric_name: str, value: float):
+        """记录性能指标"""
+        self.monitor.record(metric_name, value)
+    
+    def get_performance_report(self) -> Dict[str, Any]:
+        """获取完整性能报告"""
+        return {
+            'cache_stats': self.cache.stats(),
+            'database_stats': self.db_optimizer.get_stats(),
+            'task_queue_stats': self.task_queue.stats(),
+            'metrics': self.monitor.report()
+        }
+    
+    @staticmethod
+    def cached(ttl: int = 300):
+        """缓存装饰器"""
+        return cached(ttl=ttl, cache_instance=None)
+
+
+# ============================================================================
+# Convenience Functions (保持向后兼容)
 # ============================================================================
 
 def optimize_database_queries():
