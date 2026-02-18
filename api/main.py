@@ -47,8 +47,6 @@ import api.routers.skills as skills
 from open_notebook.database.async_migrate import AsyncMigrationManager
 from open_notebook.utils.encryption import get_secret_from_env
 
-app.include_router(skills.router)
-
 # Import commands to register them in the API process
 try:
     logger.info("Commands imported in API process")
@@ -63,7 +61,13 @@ async def lifespan(app: FastAPI):
     Runs database migrations automatically on startup.
     """
     import os
-
+    from api.routes import skills as skills_p0p1_routes  # P0/P1/C/B/A 功能端点
+    
+    # Register routers (must be after app creation)
+    app.include_router(skills.router)  # General skill management
+    app.include_router(skills_p0p1_routes.router)  # P0/P1/C/B/A features
+    logger.info("P0/P1/C/B/A routes registered successfully")
+    
     # Startup: Security checks
     logger.info("Starting API initialization...")
 
