@@ -96,6 +96,16 @@ from open_notebook.skills.weekly_evolution_scheduler import (
     run_weekly_evolution,
     start_weekly_scheduler,
 )
+from open_notebook.skills.performance_tracker import (
+    PerformanceTracker,
+    track_content_performance,
+    get_platform_stats,
+    compare_platforms,
+)
+from open_notebook.skills.report_generator import (
+    ReportGenerator,
+    generate_visualized_report,
+)
 from open_notebook.skills.multi_platform_ai_researcher import (
     MultiPlatformAIResearcher,
     collect_multi_platform_ai_tools,
@@ -201,6 +211,14 @@ __all__ = [
     "WeeklyEvolutionScheduler",
     "run_weekly_evolution",
     "start_weekly_scheduler",
+    # Performance Tracking
+    "PerformanceTracker",
+    "track_content_performance",
+    "get_platform_stats",
+    "compare_platforms",
+    # Report Generation
+    "ReportGenerator",
+    "generate_visualized_report",
     # Multi-Platform AI Researcher
     "MultiPlatformAIResearcher",
     "collect_multi_platform_ai_tools",
