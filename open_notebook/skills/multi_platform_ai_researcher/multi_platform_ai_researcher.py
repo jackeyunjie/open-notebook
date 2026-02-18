@@ -208,82 +208,277 @@ class MultiPlatformAIResearcher:
             logger.error(f"Zhihu collection failed: {e}")
             return []
 
+    async def _collect_weibo(
+        self,
+        keywords: List[str],
+        max_results: int = 20
+    ) -> List[Dict[str, Any]]:
+        """Collect from Weibo using web scraping.
+
+        Args:
+            keywords: List of keywords to search
+            max_results: Maximum results per keyword
+
+        Returns:
+            List of collected items
+        """
+        try:
+            from playwright.async_api import async_playwright
+
+            all_items = []
+
+            async with async_playwright() as p:
+                browser = await p.chromium.launch(headless=True)
+                page = await browser.new_page()
+
+                for keyword in keywords[:5]:
+                    logger.info(f"Searching Weibo for: {keyword}")
+
+                    try:
+                        # Navigate to Weibo search
+                        search_url = f"https://s.weibo.com/weibo/{keyword}"
+                        await page.goto(search_url, wait_until="networkidle")
+                        await asyncio.sleep(3)
+
+                        # Extract weibos
+                        weibo_cards = await page.query_selector_all(".card-wrap")
+
+                        for card in weibo_cards[:max_results//2]:
+                            try:
+                                # Get content
+                                content_elem = await card.query_selector(".txt")
+                                content = await content_elem.get_attribute('title') if content_elem else ""
+
+                                # Get author
+                                author_elem = await card.query_selector(".name")
+                                author = await author_elem.inner_text() if author_elem else ""
+
+                                # Get engagement metrics
+                                actions = []
+                                action_elems = await card.query_selector_all(".line-list li")
+                                for action_elem in action_elems:
+                                    text = await action_elem.inner_text()
+                                    actions.append(text.strip())
+
+                                # Parse numbers from actions (likes, reposts, comments)
+                                like_count = 0
+                                collect_count = 0
+                                comment_count = 0
+
+                                for action in actions:
+                                    import re
+                                    numbers = re.findall(r'\d+', action)
+                                    if numbers:
+                                        num = int(numbers[0])
+                                        if '赞' in action or 'like' in action.lower():
+                                            like_count = num
+                                        elif '收藏' in action or 'collect' in action.lower():
+                                            collect_count = num
+                                        elif '评论' in action or 'comment' in action.lower():
+                                            comment_count = num
+
+                                # Get link
+                                link_elem = await card.query_selector("a[href*='/status/']")
+                                url = await link_elem.get_attribute('href') if link_elem else ""
+
+                                if content and len(content) > 10:
+                                    all_items.append({
+                                        'title': content[:100] + "..." if len(content) > 100 else content,
+                                        'content': content,
+                                        'author': author.strip(),
+                                        'platform': 'weibo',
+                                        'url': f"https://weibo.com{url}" if url and url.startswith("/") else url,
+                                        'like_count': like_count,
+                                        'collect_count': collect_count,
+                                        'comment_count': comment_count,
+                                        'collected_at': datetime.now().isoformat(),
+                                        'content_type': 'weibo'
+                                    })
+
+                            except Exception as e:
+                                logger.debug(f"Failed to extract Weibo item: {e}")
+                                continue
+
+                    except Exception as e:
+                        logger.error(f"Failed to search '{keyword}' on Weibo: {e}")
+                        continue
+
+                await browser.close()
+
+            logger.info(f"Collected {len(all_items)} items from Weibo")
+            return all_items
+
+        except Exception as e:
+            logger.error(f"Weibo collection failed: {e}")
+            return []
+
     async def _collect_video_account(
         self,
         keywords: List[str],
         max_results: int = 20
     ) -> List[Dict[str, Any]]:
         """Collect from WeChat Video Account (Channels).
-        
-        Note: This requires WeChat automation which is complex.
-        Using web search as alternative approach.
-        
+
+        Note: Video Account (视频号) has strong anti-crawling protection.
+        Using Bing search with site filter as the primary strategy.
+
         Args:
             keywords: List of keywords to search
             max_results: Maximum results per keyword
-            
+
         Returns:
             List of collected items
         """
         try:
             from playwright.async_api import async_playwright
-            
+            import re
+
             all_items = []
-            
+
             async with async_playwright() as p:
                 browser = await p.chromium.launch(headless=True)
                 page = await browser.new_page()
-                
-                for keyword in keywords[:3]:  # Limit keywords
+
+                # Set user agent to avoid detection
+                await page.set_extra_http_headers({
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                })
+
+                for keyword in keywords[:3]:  # Limit keywords to avoid rate limits
                     logger.info(f"Searching Video Account for: {keyword}")
-                    
+
                     try:
-                        # Use Bing search to find video account content
-                        # (Direct video account scraping is very difficult)
+                        # Strategy 1: Bing site search for video account
                         search_url = f"https://www.bing.com/search?q=site%3Achannels.weixin.qq.com+{keyword}"
                         await page.goto(search_url, wait_until="networkidle")
-                        await asyncio.sleep(3)
-                        
-                        # Extract search results
-                        results = await page.query_selector_all("li.b_algo")
-                        
+                        await asyncio.sleep(2)
+
+                        # Extract Bing search results
+                        result_selectors = [
+                            "li.b_algo",
+                            ".b_algo",
+                            "[data-bm='6']"
+                        ]
+
+                        results = []
+                        for selector in result_selectors:
+                            results = await page.query_selector_all(selector)
+                            if results:
+                                break
+
                         for result in results[:max_results//3]:
                             try:
-                                title_elem = await result.query_selector("h2 a")
-                                title = await title_elem.inner_text() if title_elem else ""
-                                
+                                # Get title
+                                title_selectors = ["h2 a", "h2", ".b_title"]
+                                title = ""
+                                for ts in title_selectors:
+                                    title_elem = await result.query_selector(ts)
+                                    if title_elem:
+                                        title = await title_elem.inner_text()
+                                        if title:
+                                            break
+
+                                # Get link
                                 link_elem = await result.query_selector("h2 a")
                                 url = await link_elem.get_attribute("href") if link_elem else ""
-                                
+
                                 # Only collect if it's a video account link
-                                if url and "channels.weixin.qq.com" in url:
-                                    # Try to get snippet/description
-                                    snippet_elem = await result.query_selector(".b_caption p")
-                                    snippet = await snippet_elem.inner_text() if snippet_elem else ""
-                                    
+                                if not (url and "channels.weixin.qq.com" in url):
+                                    continue
+
+                                # Get snippet/description
+                                snippet_selectors = [".b_caption p", ".b_snippet", "p"]
+                                snippet = ""
+                                for ss in snippet_selectors:
+                                    snippet_elem = await result.query_selector(ss)
+                                    if snippet_elem:
+                                        snippet = await snippet_elem.inner_text()
+                                        if snippet:
+                                            break
+
+                                # Extract video ID from URL
+                                video_id = ""
+                                video_match = re.search(r'video/([\w-]+)', url)
+                                if video_match:
+                                    video_id = video_match.group(1)
+
+                                if title and len(title) > 5:
                                     all_items.append({
                                         'title': title.strip(),
                                         'content': snippet.strip(),
                                         'platform': 'video_account',
                                         'url': url,
-                                        'like_count': 0,  # Hard to extract from search
+                                        'video_id': video_id,
+                                        'like_count': 0,
                                         'collect_count': 0,
+                                        'view_count': 0,
                                         'collected_at': datetime.now().isoformat(),
-                                        'content_type': 'video'
+                                        'content_type': 'video',
+                                        'search_keyword': keyword
                                     })
+
                             except Exception as e:
                                 logger.debug(f"Failed to extract video account item: {e}")
                                 continue
-                                
+
+                        # Strategy 2: Search WeChat articles that mention video accounts
+                        article_search_url = f"https://www.bing.com/search?q=site%3Amp.weixin.qq.com+视频号+{keyword}"
+                        await page.goto(article_search_url, wait_until="networkidle")
+                        await asyncio.sleep(2)
+
+                        article_results = await page.query_selector_all("li.b_algo")
+
+                        for result in article_results[:5]:  # Limit article results
+                            try:
+                                title_elem = await result.query_selector("h2 a")
+                                title = await title_elem.inner_text() if title_elem else ""
+
+                                link_elem = await result.query_selector("h2 a")
+                                url = await link_elem.get_attribute("href") if link_elem else ""
+
+                                # Skip if not WeChat article
+                                if not (url and "mp.weixin.qq.com" in url):
+                                    continue
+
+                                snippet_elem = await result.query_selector(".b_caption p")
+                                snippet = await snippet_elem.inner_text() if snippet_elem else ""
+
+                                if title and "视频号" in title:
+                                    all_items.append({
+                                        'title': f"[相关文章] {title.strip()}",
+                                        'content': snippet.strip(),
+                                        'platform': 'official_account',
+                                        'url': url,
+                                        'like_count': 0,
+                                        'collect_count': 0,
+                                        'collected_at': datetime.now().isoformat(),
+                                        'content_type': 'article',
+                                        'search_keyword': keyword,
+                                        'note': '文章提及视频号内容'
+                                    })
+
+                            except Exception as e:
+                                logger.debug(f"Failed to extract article item: {e}")
+                                continue
+
                     except Exception as e:
                         logger.error(f"Failed to search '{keyword}' for Video Account: {e}")
                         continue
-                
+
                 await browser.close()
-            
-            logger.info(f"Collected {len(all_items)} items from Video Account (via search)")
-            return all_items
-            
+
+            # Remove duplicates based on URL
+            seen_urls = set()
+            unique_items = []
+            for item in all_items:
+                url = item.get('url', '')
+                if url and url not in seen_urls:
+                    seen_urls.add(url)
+                    unique_items.append(item)
+
+            logger.info(f"Collected {len(unique_items)} unique items from Video Account")
+            return unique_items
+
         except Exception as e:
             logger.error(f"Video Account collection failed: {e}")
             return []
@@ -487,110 +682,6 @@ class MultiPlatformAIResearcher:
             
         except Exception as e:
             logger.error(f"Douyin collection failed: {e}")
-            return []
-
-    async def _collect_weibo(
-        self,
-        keywords: List[str],
-        max_results: int = 20
-    ) -> List[Dict[str, Any]]:
-        """Collect from Weibo using web scraping.
-        
-        Args:
-            keywords: List of keywords to search
-            max_results: Maximum results per keyword
-            
-        Returns:
-            List of collected items
-        """
-        try:
-            from playwright.async_api import async_playwright
-            
-            all_items = []
-            
-            async with async_playwright() as p:
-                browser = await p.chromium.launch(headless=True)
-                page = await browser.new_page()
-                
-                for keyword in keywords[:5]:
-                    logger.info(f"Searching Weibo for: {keyword}")
-                    
-                    try:
-                        # Navigate to Weibo search
-                        search_url = f"https://s.weibo.com/weibo/{keyword}"
-                        await page.goto(search_url, wait_until="networkidle")
-                        await asyncio.sleep(3)
-                        
-                        # Extract weibos
-                        weibo_cards = await page.query_selector_all(".card-wrap")
-                        
-                        for card in weibo_cards[:max_results//2]:
-                            try:
-                                # Get content
-                                content_elem = await card.query_selector(".txt")
-                                content = await content_elem.get_attribute('title') if content_elem else ""
-                                
-                                # Get author
-                                author_elem = await card.query_selector(".name")
-                                author = await author_elem.inner_text() if author_elem else ""
-                                
-                                # Get engagement metrics
-                                actions = []
-                                action_elems = await card.query_selector_all(".line-list li")
-                                for action_elem in action_elems:
-                                    text = await action_elem.inner_text()
-                                    actions.append(text.strip())
-                                
-                                # Parse numbers from actions (likes, reposts, comments)
-                                like_count = 0
-                                collect_count = 0
-                                comment_count = 0
-                                
-                                for action in actions:
-                                    import re
-                                    numbers = re.findall(r'\d+', action)
-                                    if numbers:
-                                        num = int(numbers[0])
-                                        if '赞' in action or 'like' in action.lower():
-                                            like_count = num
-                                        elif '收藏' in action or 'collect' in action.lower():
-                                            collect_count = num
-                                        elif '评论' in action or 'comment' in action.lower():
-                                            comment_count = num
-                                
-                                # Get link
-                                link_elem = await card.query_selector("a[href*='/status/']")
-                                url = await link_elem.get_attribute('href') if link_elem else ""
-                                
-                                if content and len(content) > 10:
-                                    all_items.append({
-                                        'title': content[:100] + "..." if len(content) > 100 else content,
-                                        'content': content,
-                                        'author': author.strip(),
-                                        'platform': 'weibo',
-                                        'url': f"https://weibo.com{url}" if url and url.startswith("/") else url,
-                                        'like_count': like_count,
-                                        'collect_count': collect_count,
-                                        'comment_count': comment_count,
-                                        'collected_at': datetime.now().isoformat(),
-                                        'content_type': 'weibo'
-                                    })
-                                    
-                            except Exception as e:
-                                logger.debug(f"Failed to extract Weibo item: {e}")
-                                continue
-                                
-                    except Exception as e:
-                        logger.error(f"Failed to search '{keyword}' on Weibo: {e}")
-                        continue
-                
-                await browser.close()
-            
-            logger.info(f"Collected {len(all_items)} items from Weibo")
-            return all_items
-            
-        except Exception as e:
-            logger.error(f"Weibo collection failed: {e}")
             return []
 
     def identify_ai_tools(self, content_items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
