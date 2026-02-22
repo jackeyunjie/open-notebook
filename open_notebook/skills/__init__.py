@@ -173,6 +173,14 @@ from open_notebook.skills.multi_platform_ai_researcher import (
     collect_multi_platform_ai_tools,
 )
 from open_notebook.skills.multi_platform_ai_researcher.daily_report_generator import DailyReportGenerator, generate_daily_report
+from open_notebook.skills.daily_briefing_collector import (
+    DailyBriefingCollector,
+    ContentItem,
+)
+from open_notebook.skills.email_service import EmailService
+from open_notebook.skills.daily_briefing_scheduler import (
+    DailyBriefingScheduler,
+)
 # Note: xiaohongshu_researcher is loaded lazily to avoid circular dependency
 # from open_notebook.skills.xiaohongshu_researcher import XiaohongshuResearcherSkill, research_xiaohongshu
 
@@ -342,6 +350,11 @@ __all__ = [
     # Daily Report Generator
     "DailyReportGenerator",
     "generate_daily_report",
+    # Daily Briefing System
+    "DailyBriefingCollector",
+    "ContentItem",
+    "EmailService",
+    "DailyBriefingScheduler",
     # Xiaohongshu researcher skill (lazy loaded)
     # "XiaohongshuResearcherSkill",
     # "research_xiaohongshu",
