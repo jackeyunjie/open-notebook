@@ -259,6 +259,10 @@ from api.routes import skills as skills_p0p1_routes
 app.include_router(skills_p0p1_routes.router)
 logger.info("P0/P1/C/B/A routes registered successfully")
 
+# Daily Briefing API
+from api.routers import daily_briefing
+app.include_router(daily_briefing.router)
+
 app.include_router(workflows.router, prefix="/api", tags=["workflows"])
 app.include_router(workflow_templates.router, prefix="/api", tags=["workflow-templates"])
 app.include_router(workflow_builder.router, prefix="/api", tags=["workflow-builder"])
