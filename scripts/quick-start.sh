@@ -162,11 +162,30 @@ EOF
 start_services() {
     echo -e "${YELLOW}🚀 Starting Open Notebook...${NC}"
 
+    # Check if Docker Desktop is running
+    if ! docker info > /dev/null 2>&1; then
+        echo ""
+        echo -e "${RED}❌ Docker is not running${NC}"
+        echo ""
+        echo -e "${YELLOW}Please start Docker Desktop first:${NC}"
+        echo "   1. Open Docker Desktop application"
+        echo "   2. Wait for the engine to start (green light)"
+        echo "   3. Run this script again"
+        echo ""
+        exit 1
+    fi
+
     if docker compose up -d; then
         echo ""
         echo -e "${GREEN}✅ Services started successfully!${NC}"
     else
+        echo ""
         echo -e "${RED}❌ Failed to start services${NC}"
+        echo ""
+        echo -e "${YELLOW}Troubleshooting tips:${NC}"
+        echo "   - Check if ports 8000, 8502, 5055 are available"
+        echo "   - Run: docker compose logs to see errors"
+        echo ""
         exit 1
     fi
 }
