@@ -76,6 +76,10 @@ Learn more about our project at [https://www.open-notebook.ai](https://www.open-
 | **Privacy & Control** | Self-hosted, your data | Google cloud only | Complete data sovereignty |
 | **AI Provider Choice** | 16+ providers (OpenAI, Anthropic, Ollama, LM Studio, etc.) | Google models only | Flexibility and cost optimization |
 | **Podcast Speakers** | 1-4 speakers with custom profiles | 2 speakers only | Extreme flexibility |
+| **Video Generation** | Built-in scene-by-scene scripting | ❌ Not available | Create engaging videos |
+| **Presentations** | Built-in PPT generation (7 types, 8 layouts) | ❌ Not available | Instant slide decks |
+| **Mind Maps** | Interactive D3.js visualization | ❌ Not available | Visual knowledge exploration |
+| **Meeting Analysis** | Action items + decision extraction | ❌ Not available | Automated meeting notes |
 | **Content Transformations** | Custom and built-in | Limited options | Unlimited processing power |
 | **API Access** | Full REST API | No API | Complete automation |
 | **Deployment** | Docker, cloud, or local | Google hosted only | Deploy anywhere |
@@ -96,11 +100,27 @@ Learn more about our project at [https://www.open-notebook.ai](https://www.open-
 
 ## 🚀 Quick Start (2 Minutes)
 
-### Prerequisites
+### 🎯 One-Command Install (Recommended)
+
+**Linux/Mac:**
+```bash
+curl -fsSL https://raw.githubusercontent.com/lfnovo/open-notebook/main/scripts/quick-start.sh | bash
+```
+
+**Windows (PowerShell):**
+```powershell
+Invoke-WebRequest -Uri https://raw.githubusercontent.com/lfnovo/open-notebook/main/scripts/quick-start.bat -OutFile quick-start.bat; .\quick-start.bat
+```
+
+This will download, configure, and start Open Notebook with demo data included!
+
+### 📋 Manual Install
+
+#### Prerequisites
 - [Docker Desktop](https://www.docker.com/products/docker-desktop/) installed
 - That's it! (API keys configured later in the UI)
 
-### Step 1: Get docker-compose.yml
+#### Step 1: Get docker-compose.yml
 
 **Option A:** Download directly
 ```bash
@@ -283,8 +303,49 @@ Thanks to the [Esperanto](https://github.com/lfnovo/esperanto) library, we suppo
 - **Content Transformations**: Powerful customizable actions for content processing
 - **Enhanced Citations**: Improved layout and finer control for source citations
 - **Multiple Chat Sessions**: Manage different conversations within notebooks
+- **🚀 10 AI-Powered Skills**: Smart Source Analyzer, Citation Enhancer, Knowledge Connector, Auto Podcast Planner, Research Assistant, Video Generator, PPT Generator, MindMap Generator, Meeting Summarizer, and Model Router
 
 See the [open issues](https://github.com/lfnovo/open-notebook/issues) for a full list of proposed features and known issues.
+
+## 🎯 10 AI Skills - Beyond NotebookLM
+
+Open Notebook now includes **10 powerful AI Skills** that transform how you research, create, and share knowledge:
+
+| Skill | What It Does | NotebookLM Equivalent |
+|-------|--------------|----------------------|
+| 🔍 **Smart Source Analyzer** | Auto-generates summaries, tags, and hierarchical outlines from any source | Basic source info only |
+| 📚 **Citation Enhancer** | Precise paragraph-level citations [cite:source:id:para_N] | General references |
+| 🧠 **Knowledge Connector** | Builds interactive AI knowledge graphs from your sources | ❌ Not available |
+| 🎙️ **Auto Podcast Planner** | Plans multi-speaker podcasts (1-4 speakers, 7 formats) | Fixed 2-speaker only |
+| 🔬 **Research Assistant** | Multi-round deep research with iterative queries | Basic Q&A |
+| 🎬 **Video Generator** | Creates scene-by-scene video scripts with visual prompts | ❌ Not available |
+| 📊 **PPT Generator** | Generates presentations (7 types, 8 slide layouts) | ❌ Not available |
+| 🗺️ **MindMap Generator** | Interactive mind maps (5 layouts, D3.js visualization) | ❌ Not available |
+| 📋 **Meeting Summarizer** | Extracts action items, decisions, and sentiment from transcripts | ❌ Not available |
+| 🎯 **Model Router** | Intelligently routes tasks to optimal AI models (Claude/Qwen/Groq) | Google models only |
+
+### Why These Skills Matter
+
+**For Researchers:**
+- Citation Enhancer ensures academic integrity with precise source attribution
+- Research Assistant performs multi-round investigation like a research assistant
+- Knowledge Connector visualizes complex topic relationships
+
+**For Content Creators:**
+- Video Generator transforms research into engaging video scripts
+- PPT Generator creates presentation-ready slides from sources
+- MindMap Generator visualizes ideas for brainstorming and planning
+
+**For Teams:**
+- Meeting Summarizer extracts action items and decisions automatically
+- Auto Podcast Planner creates professional podcasts with flexible speaker configurations
+- Smart Source Analyzer processes documents faster than manual review
+
+**For Everyone:**
+- Model Router automatically selects the best AI model (Claude for reasoning, Qwen for Chinese, Groq for speed)
+- All Skills work with 16+ AI providers, giving you choice and cost control
+
+[Explore Skills Documentation](docs/2-CORE-CONCEPTS/skills.md)
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
