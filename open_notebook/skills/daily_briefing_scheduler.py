@@ -112,11 +112,18 @@ class DailyBriefingScheduler:
                     return False
             else:
                 # 无邮箱配置时，保存为 HTML 文件
+                from pathlib import Path
                 output_path = Path(f"briefing_{datetime.now().strftime('%Y%m%d')}.html")
+                
+                # 创建临时 email_service 实例来生成 HTML
+                temp_email_service = EmailService("", 465, "", "")
+                html_content = temp_email_service.generate_html_email(items_dict, date_str)
+                
                 with open(output_path, "w", encoding="utf-8") as f:
-                    f.write(self.email_service.generate_html_email(items_dict, date_str))
+                    f.write(html_content)
                 
                 print(f"⚠️  邮箱未配置，简报已保存到：{output_path}")
+                print(f"📄 用浏览器打开查看：file:///{output_path.absolute()}")
                 return True
                 
         except Exception as e:

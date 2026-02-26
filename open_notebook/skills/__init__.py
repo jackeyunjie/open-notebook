@@ -13,6 +13,64 @@ from open_notebook.skills.content_crawler import RssCrawlerSkill
 from open_notebook.skills.browser_base import BrowserUseSkill, BrowserCrawlerSkill
 from open_notebook.skills.browser_task import BrowserTaskSkill, BrowserMonitorSkill
 from open_notebook.skills.note_organizer import NoteSummarizerSkill, NoteTaggerSkill
+from open_notebook.skills.smart_analyzer import (
+    SmartSourceAnalyzer,
+    analyze_source_on_upload,
+)
+from open_notebook.skills.citation_enhancer import (
+    CitationEnhancer,
+    enhance_response_citations,
+)
+from open_notebook.skills.model_router import (
+    MultiModelRouter,
+    route_and_provision_model,
+    get_model_recommendation,
+)
+from open_notebook.skills.knowledge_connector import (
+    KnowledgeConnector,
+    build_knowledge_graph,
+    find_cross_document_connections,
+)
+from open_notebook.skills.auto_podcast_planner import (
+    AutoPodcastPlanner,
+    plan_podcast,
+    suggest_podcast_formats,
+)
+from open_notebook.skills.research_assistant import (
+    ResearchAssistant,
+    ResearchDepth,
+    ResearchFinding,
+    ResearchReport,
+    conduct_research,
+)
+from open_notebook.skills.video_generator import (
+    VideoGenerator,
+    VideoStyle,
+    VideoScript,
+    VideoScene,
+    generate_video_from_notebook,
+)
+from open_notebook.skills.ppt_generator import (
+    PPTGenerator,
+    Presentation,
+    PresentationType,
+    Slide,
+    generate_presentation,
+)
+from open_notebook.skills.mindmap_generator import (
+    MindMapGenerator,
+    MindMap,
+    MindNode,
+    LayoutType,
+    generate_mindmap,
+)
+from open_notebook.skills.meeting_summarizer import (
+    MeetingSummarizer,
+    MeetingSummary,
+    ActionItem,
+    Decision,
+    summarize_meeting,
+)
 from open_notebook.skills.vikki_content_ops import (
     ContentAdaptorSkill,
     CycleDiagnosticianSkill,
@@ -202,6 +260,54 @@ __all__ = [
     "BrowserMonitorSkill",
     "NoteSummarizerSkill",
     "NoteTaggerSkill",
+    # Smart Source Analyzer
+    "SmartSourceAnalyzer",
+    "analyze_source_on_upload",
+    # Citation Enhancer
+    "CitationEnhancer",
+    "enhance_response_citations",
+    # Multi-Model Router
+    "MultiModelRouter",
+    "route_and_provision_model",
+    "get_model_recommendation",
+    # Knowledge Connector
+    "KnowledgeConnector",
+    "build_knowledge_graph",
+    "find_cross_document_connections",
+    # Auto Podcast Planner
+    "AutoPodcastPlanner",
+    "plan_podcast",
+    "suggest_podcast_formats",
+    # Research Assistant
+    "ResearchAssistant",
+    "ResearchDepth",
+    "ResearchFinding",
+    "ResearchReport",
+    "conduct_research",
+    # Video Generator
+    "VideoGenerator",
+    "VideoStyle",
+    "VideoScript",
+    "VideoScene",
+    "generate_video_from_notebook",
+    # PPT Generator
+    "PPTGenerator",
+    "Presentation",
+    "PresentationType",
+    "Slide",
+    "generate_presentation",
+    # Mind Map Generator
+    "MindMapGenerator",
+    "MindMap",
+    "MindNode",
+    "LayoutType",
+    "generate_mindmap",
+    # Meeting Summarizer
+    "MeetingSummarizer",
+    "MeetingSummary",
+    "ActionItem",
+    "Decision",
+    "summarize_meeting",
     # Vikki content operations skills
     "PainpointScannerSkill",
     "QuadrantClassifierSkill",

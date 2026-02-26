@@ -49,6 +49,7 @@ curl -X POST http://localhost:8000/api/v1/skills/visualizations/create \
 ```
 """
 
+from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Query
@@ -90,6 +91,36 @@ from open_notebook.skills.ui_integration import (
     get_task_progress,
     get_ui_actions,
     send_notification,
+)
+from open_notebook.skills.knowledge_connector import (
+    KnowledgeConnector,
+    build_knowledge_graph,
+    find_cross_document_connections,
+)
+from open_notebook.skills.research_assistant import (
+    ResearchAssistant,
+    ResearchDepth,
+    conduct_research,
+)
+from open_notebook.skills.video_generator import (
+    VideoGenerator,
+    VideoStyle,
+    generate_video_from_notebook,
+)
+from open_notebook.skills.ppt_generator import (
+    PPTGenerator,
+    PresentationType,
+    generate_presentation,
+)
+from open_notebook.skills.mindmap_generator import (
+    MindMapGenerator,
+    LayoutType,
+    generate_mindmap,
+)
+from open_notebook.skills.meeting_summarizer import (
+    MeetingSummarizer,
+    MeetingType,
+    summarize_meeting,
 )
 from open_notebook.skills.visual_knowledge_graph import (
     create_mind_map,
@@ -700,6 +731,623 @@ async def cache_stats():
     except Exception as e:
         logger.error(f"Get cache stats failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================================
+# Knowledge Connector (Knowledge Graph Enhancement)
+# ============================================================================
+
+
+class KnowledgeGraphRequest(BaseModel):
+    """知识图谱构建请求"""
+
+    notebook_id: str = Field(..., description="Notebook ID")
+    source_ids: Optional[List[str]] = Field(None, description="指定源列表（可选）")
+    extract_entities: bool = Field(True, description="使用AI提取实体")
+    discover_relationships: bool = Field(True, description="发现实体关系")
+    min_confidence: float = Field(0.7, description="最低置信度阈值")
+
+
+class KnowledgeGraphResponse(BaseModel):
+    """知识图谱构建响应"""
+
+    success: bool
+    knowledge_graph: Dict[str, Any]
+    visualizations: Dict[str, Any]
+    stats: Dict[str, Any]
+
+
+class CrossDocumentConnectionsRequest(BaseModel):
+    """跨文档连接发现请求"""
+
+    notebook_id: str = Field(..., description="Notebook ID")
+    entity_name: Optional[str] = Field(None, description="指定实体名称（可选）")
+
+
+@router.post("/knowledge-graph/build", response_model=KnowledgeGraphResponse)
+async def build_knowledge_graph_endpoint(request: KnowledgeGraphRequest):
+    """构建知识图谱
+
+    分析 Notebook 中的所有 Source，提取实体并发现关系，
+    构建可交互的知识图谱。
+    """
+    try:
+        from open_notebook.skills.base import SkillContext
+
+        config = {
+            "skill_type": "knowledge_connector",
+            "name": "Build Knowledge Graph",
+            "parameters": {
+                "notebook_id": request.notebook_id,
+                "source_ids": request.source_ids,
+                "extract_entities": request.extract_entities,
+                "discover_relationships": request.discover_relationships,
+                "min_confidence": request.min_confidence,
+                "generate_visualization": True,
+            },
+        }
+
+        connector = KnowledgeConnector(config)
+        ctx = SkillContext(
+            skill_id=f"kg_{request.notebook_id}",
+            trigger_type="api",
+            notebook_id=request.notebook_id,
+        )
+
+        result = await connector.run(ctx)
+
+        if not result.success:
+            raise HTTPException(status_code=500, detail=result.error_message)
+
+        return KnowledgeGraphResponse(
+            success=True,
+            knowledge_graph=result.output.get("knowledge_graph", {}),
+            visualizations=result.output.get("visualizations", {}),
+            stats=result.output.get("stats", {}),
+        )
+
+    except Exception as e:
+        logger.error(f"Knowledge graph build failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/knowledge-graph/connections")
+async def find_connections(request: CrossDocumentConnectionsRequest):
+    """发现跨文档连接
+
+    找出在不同 Source 中出现的相同实体，
+    揭示文档间的隐含关联。
+    """
+    try:
+        connections = await find_cross_document_connections(
+            request.notebook_id,
+            request.entity_name,
+        )
+
+        return {
+            "success": True,
+            "connections": connections,
+            "total_found": len(connections),
+        }
+
+    except Exception as e:
+        logger.error(f"Find connections failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================================
+# Research Assistant
+# ============================================================================
+
+
+class ResearchRequest(BaseModel):
+    """深度研究请求"""
+
+    notebook_id: str = Field(..., description="Notebook ID")
+    research_question: str = Field(..., description="研究问题", min_length=5)
+    depth: str = Field("standard", description="研究深度 (quick, standard, deep)")
+    max_rounds: int = Field(3, ge=1, le=5, description="最大研究轮数")
+    source_ids: Optional[List[str]] = Field(None, description="指定源列表")
+    auto_save_note: bool = Field(True, description="自动保存为 Note")
+
+
+class ResearchResponse(BaseModel):
+    """深度研究响应"""
+
+    success: bool
+    note_id: Optional[str] = None
+    report: Optional[Dict[str, Any]] = None
+    stats: Dict[str, Any] = {}
+    message: str = ""
+
+
+@router.post("/research/conduct", response_model=ResearchResponse)
+async def conduct_deep_research(request: ResearchRequest):
+    """执行深度研究
+
+    多轮迭代研究，自动收集和验证信息，生成综合研究报告。
+
+    ## 研究深度
+    - `quick`: 1轮，快速回答
+    - `standard`: 2轮，交叉验证
+    - `deep`: 3轮，全面分析
+
+    ## 返回内容
+    - 执行摘要
+    - 关键发现（带置信度）
+    - 知识缺口
+    - 建议
+    - 来源分析
+    """
+    try:
+        from open_notebook.skills.base import SkillConfig, SkillContext
+
+        config = SkillConfig(
+            skill_type="research_assistant",
+            name="Research Assistant",
+            parameters={
+                "notebook_id": request.notebook_id,
+                "research_question": request.research_question,
+                "depth": request.depth,
+                "max_rounds": request.max_rounds,
+                "source_ids": request.source_ids,
+                "auto_save_note": request.auto_save_note,
+            }
+        )
+
+        assistant = ResearchAssistant(config)
+        ctx = SkillContext(
+            skill_id=f"research_api_{datetime.utcnow().timestamp()}",
+            trigger_type="api"
+        )
+
+        result = await assistant.run(ctx)
+
+        if result.success:
+            return ResearchResponse(
+                success=True,
+                note_id=result.output.get("note_id"),
+                report=result.output.get("research_report"),
+                stats=result.output.get("stats", {}),
+                message=f"Research completed with {result.output.get('stats', {}).get('rounds_completed', 0)} rounds"
+            )
+        else:
+            return ResearchResponse(
+                success=False,
+                message=result.error_message or "Research failed"
+            )
+
+    except Exception as e:
+        logger.error(f"Research failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/research/status")
+async def get_research_capabilities():
+    """获取研究助手能力说明"""
+    return {
+        "name": "Research Assistant",
+        "version": "1.0",
+        "capabilities": {
+            "depth_levels": ["quick", "standard", "deep"],
+            "max_rounds": 5,
+            "features": [
+                "Multi-round iterative research",
+                "Source cross-validation",
+                "Confidence scoring",
+                "Gap identification",
+                "Automatic note generation",
+            ]
+        },
+        "endpoints": {
+            "conduct_research": "POST /research/conduct",
+            "status": "GET /research/status",
+        }
+    }
+
+
+# ============================================================================
+# Video Generator
+# ============================================================================
+
+
+class VideoGenerationRequest(BaseModel):
+    """视频生成请求"""
+
+    notebook_id: Optional[str] = Field(None, description="Notebook ID")
+    note_id: Optional[str] = Field(None, description="Note ID (优先于 notebook)")
+    source_ids: Optional[List[str]] = Field(None, description="指定源列表")
+    video_style: str = Field("educational", description="视频风格")
+    target_duration: int = Field(60, ge=30, le=300, description="目标时长(秒)")
+    provider: str = Field("mock", description="视频提供商")
+    target_audience: str = Field("general", description="目标受众")
+    include_narration: bool = Field(True, description="包含旁白")
+    include_music: bool = Field(True, description="包含背景音乐")
+
+
+class VideoGenerationResponse(BaseModel):
+    """视频生成响应"""
+
+    success: bool
+    note_id: Optional[str] = None
+    script: Optional[Dict[str, Any]] = None
+    video_result: Optional[Dict[str, Any]] = None
+    message: str = ""
+
+
+@router.post("/videos/generate", response_model=VideoGenerationResponse)
+async def generate_video(request: VideoGenerationRequest):
+    """生成 AI 视频
+
+    将 Notebook 或 Note 内容转换为 AI 生成视频。
+    支持多种风格和视频提供商。
+
+    ## 视频风格
+    - `educational`: 教育/讲解风格
+    - `storytelling`: 叙事风格
+    - `visualization`: 可视化/动画
+    - `news`: 新闻播报风格
+    - `interview`: 访谈形式
+    - `short`: 短视频/快节奏
+
+    ## 提供商
+    - `mock`: 模拟生成（测试用）
+    - `seedance`: Seedance API
+    - `runway`: Runway ML
+    - `pika`: Pika Labs
+    """
+    try:
+        from open_notebook.skills.base import SkillConfig, SkillContext
+
+        config = SkillConfig(
+            skill_type="video_generator",
+            name="Video Generator",
+            parameters={
+                "notebook_id": request.notebook_id,
+                "note_id": request.note_id,
+                "source_ids": request.source_ids,
+                "video_style": request.video_style,
+                "target_duration": request.target_duration,
+                "provider": request.provider,
+                "target_audience": request.target_audience,
+                "include_narration": request.include_narration,
+                "include_music": request.include_music,
+            }
+        )
+
+        generator = VideoGenerator(config)
+        ctx = SkillContext(
+            skill_id=f"video_gen_api_{datetime.utcnow().timestamp()}",
+            trigger_type="api"
+        )
+
+        result = await generator.run(ctx)
+
+        if result.success:
+            return VideoGenerationResponse(
+                success=True,
+                note_id=result.output.get("note_id"),
+                script=result.output.get("script"),
+                video_result=result.output.get("video_result"),
+                message=f"Video script generated with {result.output.get('script', {}).get('scene_count', 0)} scenes"
+            )
+        else:
+            return VideoGenerationResponse(
+                success=False,
+                message=result.error_message or "Video generation failed"
+            )
+
+    except Exception as e:
+        logger.error(f"Video generation failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/videos/styles")
+async def get_video_styles():
+    """获取支持的视频风格"""
+    return {
+        "styles": [
+            {"id": "educational", "name": "教育讲解", "description": "适合教程和知识讲解"},
+            {"id": "storytelling", "name": "叙事故事", "description": "叙事驱动的内容"},
+            {"id": "visualization", "name": "可视化", "description": "数据可视化、概念动画"},
+            {"id": "news", "name": "新闻播报", "description": "专业新闻风格"},
+            {"id": "interview", "name": "访谈", "description": "访谈对话形式"},
+            {"id": "short", "name": "短视频", "description": "快节奏短视频(TikTok/Reels风格)"},
+        ],
+        "providers": [
+            {"id": "mock", "name": "模拟模式", "status": "available"},
+            {"id": "seedance", "name": "Seedance", "status": "requires_api_key"},
+            {"id": "runway", "name": "Runway ML", "status": "requires_api_key"},
+            {"id": "pika", "name": "Pika Labs", "status": "requires_api_key"},
+            {"id": "kling", "name": "Kling", "status": "requires_api_key"},
+        ],
+        "durations": {
+            "min": 30,
+            "max": 300,
+            "recommended": 60
+        }
+    }
+
+
+# ============================================================================
+# PPT Generator
+# ============================================================================
+
+
+class PPTGenerationRequest(BaseModel):
+    """PPT生成请求"""
+
+    notebook_id: Optional[str] = Field(None, description="Notebook ID")
+    note_id: Optional[str] = Field(None, description="Note ID (优先)")
+    source_ids: Optional[List[str]] = Field(None, description="指定源列表")
+    presentation_type: str = Field("research_report", description="演示类型")
+    target_audience: str = Field("general", description="目标受众")
+    max_slides: int = Field(15, ge=3, le=50, description="最大幻灯片数")
+    theme: str = Field("professional", description="设计主题")
+
+
+class PPTGenerationResponse(BaseModel):
+    """PPT生成响应"""
+
+    success: bool
+    note_id: Optional[str] = None
+    presentation: Optional[Dict[str, Any]] = None
+    file_path: Optional[str] = None
+    message: str = ""
+
+
+@router.post("/presentations/generate", response_model=PPTGenerationResponse)
+async def generate_presentation_endpoint(request: PPTGenerationRequest):
+    """生成演示文稿
+
+    从 Notebook 内容生成专业 PPT 演示文稿。
+
+    ## 演示类型
+    - `pitch_deck`: 产品/项目路演
+    - `tutorial`: 教学教程
+    - `research_report`: 研究报告
+    - `executive_summary`: 执行摘要
+    - `case_study`: 案例分析
+    - `training`: 培训材料
+    - `status_update`: 项目进展
+    """
+    try:
+        from open_notebook.skills.base import SkillConfig, SkillContext
+
+        config = SkillConfig(
+            skill_type="ppt_generator",
+            name="PPT Generator",
+            parameters={
+                "notebook_id": request.notebook_id,
+                "note_id": request.note_id,
+                "source_ids": request.source_ids,
+                "presentation_type": request.presentation_type,
+                "target_audience": request.target_audience,
+                "max_slides": request.max_slides,
+                "theme": request.theme,
+            }
+        )
+
+        generator = PPTGenerator(config)
+        ctx = SkillContext(
+            skill_id=f"ppt_api_{datetime.utcnow().timestamp()}",
+            trigger_type="api"
+        )
+
+        result = await generator.run(ctx)
+
+        if result.success:
+            return PPTGenerationResponse(
+                success=True,
+                note_id=result.output.get("note_id"),
+                presentation=result.output.get("presentation"),
+                file_path=result.output.get("file_path"),
+                message=f"Presentation generated with {result.output.get('stats', {}).get('slide_count', 0)} slides"
+            )
+        else:
+            return PPTGenerationResponse(
+                success=False,
+                message=result.error_message or "Presentation generation failed"
+            )
+
+    except Exception as e:
+        logger.error(f"PPT generation failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/presentations/types")
+async def get_presentation_types():
+    """获取支持的演示类型"""
+    return {
+        "types": [
+            {"id": "pitch_deck", "name": "路演PPT", "description": "产品/项目路演展示"},
+            {"id": "tutorial", "name": "教学教程", "description": "分步骤教学内容"},
+            {"id": "research_report", "name": "研究报告", "description": "学术研究展示"},
+            {"id": "executive_summary", "name": "执行摘要", "description": "高层管理汇报"},
+            {"id": "case_study", "name": "案例分析", "description": "问题-方案-结果"},
+            {"id": "training", "name": "培训材料", "description": "员工/客户培训"},
+            {"id": "status_update", "name": "项目进展", "description": "项目状态更新"},
+        ],
+        "themes": ["professional", "modern", "minimal", "colorful", "dark"],
+    }
+
+
+# ============================================================================
+# Mind Map Generator
+# ============================================================================
+
+
+class MindMapRequest(BaseModel):
+    """思维导图请求"""
+
+    notebook_id: Optional[str] = Field(None, description="Notebook ID")
+    note_id: Optional[str] = Field(None, description="Note ID (优先)")
+    layout: str = Field("radial", description="布局类型")
+    max_depth: int = Field(4, ge=2, le=6, description="最大深度")
+    focus_topic: Optional[str] = Field(None, description="焦点主题")
+
+
+class MindMapResponse(BaseModel):
+    """思维导图响应"""
+
+    success: bool
+    note_id: Optional[str] = None
+    mindmap: Optional[Dict[str, Any]] = None
+    files: Optional[Dict[str, str]] = None
+    preview: str = ""
+    message: str = ""
+
+
+@router.post("/mindmaps/generate", response_model=MindMapResponse)
+async def generate_mindmap_endpoint(request: MindMapRequest):
+    """生成思维导图
+
+    从 Notebook 内容生成交互式思维导图。
+    输出格式：Markdown、JSON、HTML(交互式)
+
+    ## 布局类型
+    - `radial`: 放射状（中心向外）
+    - `tree`: 树状（层级）
+    - `organic`: 自由形
+    - `fishbone`: 鱼骨图（因果分析）
+    - `timeline`: 时间线
+    """
+    try:
+        from open_notebook.skills.base import SkillConfig, SkillContext
+
+        config = SkillConfig(
+            skill_type="mindmap_generator",
+            name="Mind Map Generator",
+            parameters={
+                "notebook_id": request.notebook_id,
+                "note_id": request.note_id,
+                "layout": request.layout,
+                "max_depth": request.max_depth,
+                "focus_topic": request.focus_topic,
+            }
+        )
+
+        generator = MindMapGenerator(config)
+        ctx = SkillContext(
+            skill_id=f"mindmap_api_{datetime.utcnow().timestamp()}",
+            trigger_type="api"
+        )
+
+        result = await generator.run(ctx)
+
+        if result.success:
+            return MindMapResponse(
+                success=True,
+                note_id=result.output.get("files", {}).get("note_id"),
+                mindmap=result.output.get("mindmap"),
+                files=result.output.get("files"),
+                preview=result.output.get("preview", ""),
+                message=f"Mind map generated with {result.output.get('mindmap', {}).get('node_count', 0)} nodes"
+            )
+        else:
+            return MindMapResponse(
+                success=False,
+                message=result.error_message or "Mind map generation failed"
+            )
+
+    except Exception as e:
+        logger.error(f"Mind map generation failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================================
+# Meeting Summarizer
+# ============================================================================
+
+
+class MeetingSummaryRequest(BaseModel):
+    """会议摘要请求"""
+
+    notebook_id: Optional[str] = Field(None, description="Notebook ID")
+    note_id: Optional[str] = Field(None, description="会议记录 Note ID")
+    meeting_type: str = Field("review", description="会议类型")
+    participants: Optional[List[str]] = Field(None, description="参与者列表")
+    duration_minutes: Optional[int] = Field(None, description="会议时长")
+
+
+class MeetingSummaryResponse(BaseModel):
+    """会议摘要响应"""
+
+    success: bool
+    note_id: Optional[str] = None
+    summary: Optional[Dict[str, Any]] = None
+    stats: Optional[Dict[str, Any]] = None
+    follow_up_email: Optional[str] = None
+    message: str = ""
+
+
+@router.post("/meetings/summarize", response_model=MeetingSummaryResponse)
+async def summarize_meeting_endpoint(request: MeetingSummaryRequest):
+    """会议记录摘要
+
+    分析会议转录/记录，生成结构化摘要：
+    - 关键讨论点
+    - 行动项（含负责人和截止日期）
+    - 决策记录
+    - 后续邮件草稿
+    """
+    try:
+        from open_notebook.skills.base import SkillConfig, SkillContext
+
+        config = SkillConfig(
+            skill_type="meeting_summarizer",
+            name="Meeting Summarizer",
+            parameters={
+                "notebook_id": request.notebook_id,
+                "note_id": request.note_id,
+                "meeting_type": request.meeting_type,
+                "participants": request.participants or [],
+                "duration_minutes": request.duration_minutes,
+            }
+        )
+
+        summarizer = MeetingSummarizer(config)
+        ctx = SkillContext(
+            skill_id=f"meeting_api_{datetime.utcnow().timestamp()}",
+            trigger_type="api"
+        )
+
+        result = await summarizer.run(ctx)
+
+        if result.success:
+            return MeetingSummaryResponse(
+                success=True,
+                note_id=result.output.get("note_id"),
+                summary=result.output.get("summary"),
+                stats=result.output.get("stats"),
+                follow_up_email=result.output.get("follow_up_email"),
+                message=f"Meeting summarized: {result.output.get('stats', {}).get('key_points', 0)} key points, {result.output.get('stats', {}).get('action_items', 0)} action items"
+            )
+        else:
+            return MeetingSummaryResponse(
+                success=False,
+                message=result.error_message or "Meeting summarization failed"
+            )
+
+    except Exception as e:
+        logger.error(f"Meeting summarization failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/meetings/types")
+async def get_meeting_types():
+    """获取支持的会议类型"""
+    return {
+        "types": [
+            {"id": "standup", "name": "每日站会", "focus": "进度同步、阻碍"},
+            {"id": "review", "name": "回顾会议", "focus": "进展、反馈"},
+            {"id": "planning", "name": "规划会议", "focus": "目标、时间线"},
+            {"id": "brainstorm", "name": "头脑风暴", "focus": "创意、解决方案"},
+            {"id": "one_on_one", "name": "一对一", "focus": "个人发展、反馈"},
+            {"id": "client", "name": "客户会议", "focus": "需求、反馈"},
+            {"id": "board", "name": "董事会", "focus": "战略、指标"},
+        ]
+    }
 
 
 # ============================================================================
