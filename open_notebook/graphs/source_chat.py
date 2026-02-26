@@ -12,6 +12,7 @@ from typing_extensions import TypedDict
 from open_notebook.ai.provision import provision_langchain_model
 from open_notebook.config import LANGGRAPH_CHECKPOINT_FILE, SOURCE_CHAT_MAX_TOKENS
 from open_notebook.domain.notebook import Source, SourceInsight
+from open_notebook.skills.citation_enhancer import enhance_response_citations
 from open_notebook.utils import clean_thinking_content
 from open_notebook.utils.async_bridge import await_bridge
 from open_notebook.utils.context_builder import ContextBuilder
@@ -115,6 +116,25 @@ def call_model_with_source_context(
         else str(ai_message.content)
     )
     cleaned_content = clean_thinking_content(content)
+
+    # Enhance citations with precise references
+    try:
+        if source and source.id:
+            enhanced = await await_bridge(
+                lambda: enhance_response_citations(
+                    response_text=cleaned_content,
+                    source_ids=[str(source.id)],
+                    citation_format="bracket",
+                    snippet_length=150
+                ),
+                timeout=10.0
+            )
+            cleaned_content = enhanced.annotated_text
+    except Exception as e:
+        # Log but don't fail if citation enhancement fails
+        import logging
+        logging.getLogger(__name__).warning(f"Citation enhancement failed: {e}")
+
     cleaned_message = ai_message.model_copy(update={"content": cleaned_content})
 
     # Update state with context information

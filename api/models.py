@@ -303,6 +303,10 @@ class SourceCreate(BaseModel):
     async_processing: bool = Field(
         False, description="Whether to process source asynchronously"
     )
+    # Smart analysis support
+    auto_analyze: bool = Field(
+        True, description="Automatically analyze source and generate summary, tags, and outline"
+    )
 
     @model_validator(mode="after")
     def validate_notebook_fields(self):

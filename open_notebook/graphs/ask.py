@@ -2,6 +2,7 @@ import operator
 from typing import Annotated, List
 
 from ai_prompter import Prompter
+from loguru import logger
 from langchain_core.output_parsers.pydantic import PydanticOutputParser
 from langchain_core.runnables import RunnableConfig
 from langgraph.graph import END, START, StateGraph
@@ -11,6 +12,7 @@ from typing_extensions import TypedDict
 
 from open_notebook.ai.provision import provision_langchain_model
 from open_notebook.domain.notebook import vector_search
+from open_notebook.skills.citation_enhancer import CitationEnhancer, enhance_response_citations
 from open_notebook.utils import clean_thinking_content
 
 
@@ -131,7 +133,33 @@ async def write_final_answer(state: ThreadState, config: RunnableConfig) -> dict
         if isinstance(ai_message.content, str)
         else str(ai_message.content)
     )
-    return {"final_answer": clean_thinking_content(final_content)}
+    cleaned_content = clean_thinking_content(final_content)
+
+    # Enhance citations with precise paragraph references
+    try:
+        # Collect all source IDs from answers
+        source_ids = []
+        for answer in state.get("answers", []):
+            # Extract source IDs from answer text
+            import re
+            ids = re.findall(r'\[(source:[a-zA-Z0-9_]+)\]', str(answer))
+            source_ids.extend(ids)
+
+        # Remove duplicates while preserving order
+        source_ids = list(dict.fromkeys(source_ids))
+
+        if source_ids:
+            enhanced = await enhance_response_citations(
+                response_text=cleaned_content,
+                source_ids=source_ids,
+                citation_format="bracket",
+                snippet_length=150
+            )
+            return {"final_answer": enhanced.annotated_text}
+    except Exception as e:
+        logger.warning(f"Citation enhancement failed: {e}")
+
+    return {"final_answer": cleaned_content}
 
 
 agent_state = StateGraph(ThreadState)

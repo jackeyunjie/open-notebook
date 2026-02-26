@@ -1,3 +1,4 @@
+from datetime import datetime
 from pathlib import Path
 from typing import List, Optional
 from urllib.parse import unquote, urlparse
@@ -11,6 +12,11 @@ from api.podcast_service import (
     PodcastGenerationRequest,
     PodcastGenerationResponse,
     PodcastService,
+)
+from open_notebook.skills.auto_podcast_planner import (
+    AutoPodcastPlanner,
+    plan_podcast,
+    suggest_podcast_formats,
 )
 
 router = APIRouter()
@@ -230,4 +236,181 @@ async def delete_podcast_episode(episode_id: str):
         logger.error(f"Error deleting podcast episode: {str(e)}")
         raise HTTPException(
             status_code=500, detail="Failed to delete episode"
+        )
+
+
+# Auto Podcast Planner endpoints
+class PodcastPlanRequest(BaseModel):
+    notebook_id: str
+    source_ids: Optional[List[str]] = None
+    preferred_duration: int = 15
+    preferred_format: Optional[str] = None
+    audience: str = "general"
+
+
+class PodcastPlanResponse(BaseModel):
+    success: bool
+    plan: Optional[dict] = None
+    episode_profile: Optional[dict] = None
+    speaker_profile: Optional[dict] = None
+    recommendations: Optional[dict] = None
+    error_message: Optional[str] = None
+
+
+class SuggestFormatsRequest(BaseModel):
+    notebook_id: str
+
+
+class SuggestFormatsResponse(BaseModel):
+    success: bool
+    suggestions: List[dict] = []
+    error_message: Optional[str] = None
+
+
+@router.post("/podcasts/plan", response_model=PodcastPlanResponse)
+async def create_podcast_plan(request: PodcastPlanRequest):
+    """
+    Generate an AI-powered podcast plan based on notebook content.
+    Analyzes content and recommends format, speakers, and structure.
+    """
+    try:
+        from open_notebook.skills.base import SkillConfig, SkillContext
+
+        config = SkillConfig(
+            skill_type="auto_podcast_planner",
+            name="Auto Podcast Planner",
+            parameters={
+                "notebook_id": request.notebook_id,
+                "source_ids": request.source_ids,
+                "preferred_duration": request.preferred_duration,
+                "preferred_format": request.preferred_format,
+                "audience": request.audience,
+            }
+        )
+
+        planner = AutoPodcastPlanner(config)
+        ctx = SkillContext(
+            skill_id=f"podcast_plan_api_{datetime.utcnow().timestamp()}",
+            trigger_type="api"
+        )
+
+        result = await planner.run(ctx)
+
+        if result.success:
+            return PodcastPlanResponse(
+                success=True,
+                plan=result.output.get("podcast_plan"),
+                episode_profile=result.output.get("episode_profile"),
+                speaker_profile=result.output.get("speaker_profile"),
+                recommendations=result.output.get("recommendations"),
+            )
+        else:
+            return PodcastPlanResponse(
+                success=False,
+                error_message=result.error_message
+            )
+
+    except Exception as e:
+        logger.error(f"Error creating podcast plan: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to create podcast plan: {str(e)}"
+        )
+
+
+@router.post("/podcasts/suggest-formats", response_model=SuggestFormatsResponse)
+async def suggest_podcast_formats_endpoint(request: SuggestFormatsRequest):
+    """
+    Suggest suitable podcast formats for notebook content.
+    Returns ranked format recommendations with scores.
+    """
+    try:
+        suggestions = await suggest_podcast_formats(request.notebook_id)
+
+        return SuggestFormatsResponse(
+            success=True,
+            suggestions=suggestions
+        )
+
+    except Exception as e:
+        logger.error(f"Error suggesting podcast formats: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to suggest formats: {str(e)}"
+        )
+
+
+@router.post("/podcasts/plan-and-generate")
+async def plan_and_generate_podcast(request: PodcastPlanRequest):
+    """
+    Plan a podcast and immediately generate it using the planned profiles.
+    Creates temporary episode and speaker profiles based on AI recommendations.
+    """
+    try:
+        from open_notebook.skills.base import SkillConfig, SkillContext
+        from open_notebook.podcasts.models import EpisodeProfile, SpeakerProfile
+        from datetime import datetime
+
+        # Step 1: Create plan
+        config = SkillConfig(
+            skill_type="auto_podcast_planner",
+            name="Auto Podcast Planner",
+            parameters={
+                "notebook_id": request.notebook_id,
+                "source_ids": request.source_ids,
+                "preferred_duration": request.preferred_duration,
+                "preferred_format": request.preferred_format,
+                "audience": request.audience,
+            }
+        )
+
+        planner = AutoPodcastPlanner(config)
+        ctx = SkillContext(
+            skill_id=f"podcast_plan_generate_{datetime.utcnow().timestamp()}",
+            trigger_type="api"
+        )
+
+        result = await planner.run(ctx)
+
+        if not result.success:
+            return {
+                "success": False,
+                "stage": "planning",
+                "error_message": result.error_message
+            }
+
+        # Step 2: Save profiles
+        plan = result.output["podcast_plan"]
+        episode_profile_data = result.output["episode_profile"]
+        speaker_profile_data = result.output["speaker_profile"]
+
+        # Create and save episode profile
+        episode_profile = EpisodeProfile(**episode_profile_data)
+        await episode_profile.save()
+
+        # Create and save speaker profile
+        speaker_profile = SpeakerProfile(**speaker_profile_data)
+        await speaker_profile.save()
+
+        # Step 3: Submit generation job
+        job_id = await PodcastService.submit_generation_job(
+            episode_profile_name=episode_profile.name,
+            speaker_profile_name=speaker_profile.name,
+            episode_name=plan["title"],
+            notebook_id=request.notebook_id,
+            briefing_suffix=f"Original hook: {plan['hook']}"
+        )
+
+        return {
+            "success": True,
+            "stage": "generation_submitted",
+            "job_id": job_id,
+            "episode_profile_name": episode_profile.name,
+            "speaker_profile_name": speaker_profile.name,
+            "plan": plan,
+            "message": f"Podcast generation started with {plan['num_speakers']} speakers in {plan['format_type']} format"
+        }
+
+    except Exception as e:
+        logger.error(f"Error in plan and generate: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to plan and generate podcast: {str(e)}"
         )

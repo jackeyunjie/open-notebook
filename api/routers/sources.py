@@ -96,6 +96,7 @@ def parse_source_form_data(
     embed: str = Form("false"),  # Accept as string, convert to bool
     delete_source: str = Form("false"),  # Accept as string, convert to bool
     async_processing: str = Form("false"),  # Accept as string, convert to bool
+    auto_analyze: str = Form("true"),  # Accept as string, convert to bool (default: true)
     file: Optional[UploadFile] = File(None),
 ) -> tuple[SourceCreate, Optional[UploadFile]]:
     """Parse form data into SourceCreate model and return upload file separately."""
@@ -108,6 +109,7 @@ def parse_source_form_data(
     embed_bool = str_to_bool(embed)
     delete_source_bool = str_to_bool(delete_source)
     async_processing_bool = str_to_bool(async_processing)
+    auto_analyze_bool = str_to_bool(auto_analyze)
 
     # Parse JSON strings
     notebooks_list = None
@@ -140,6 +142,7 @@ def parse_source_form_data(
             embed=embed_bool,
             delete_source=delete_source_bool,
             async_processing=async_processing_bool,
+            auto_analyze=auto_analyze_bool,
         )
         pass  # SourceCreate instance created successfully
     except Exception as e:
@@ -376,6 +379,7 @@ async def create_source(
                     notebook_ids=source_data.notebooks,
                     transformations=transformation_ids,
                     embed=source_data.embed,
+                    auto_analyze=source_data.auto_analyze,
                 )
 
                 command_id = await CommandService.submit_command_job(
@@ -451,6 +455,7 @@ async def create_source(
                     notebook_ids=source_data.notebooks,
                     transformations=transformation_ids,
                     embed=source_data.embed,
+                    auto_analyze=source_data.auto_analyze,
                 )
 
                 # Run in thread pool to avoid blocking the event loop

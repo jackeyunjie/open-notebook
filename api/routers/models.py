@@ -779,3 +779,82 @@ async def auto_assign_defaults():
         raise HTTPException(
             status_code=500, detail=f"Error auto-assigning defaults: {str(e)}"
         )
+
+
+# =============================================================================
+# Model Routing Endpoints
+# =============================================================================
+
+
+class ModelRouteRequest(BaseModel):
+    """Request model for model routing recommendation."""
+
+    content: str
+    task_type: Optional[str] = None
+    require_fast: bool = False
+    require_cheap: bool = False
+
+
+class ModelRouteResponse(BaseModel):
+    """Response model for model routing recommendation."""
+
+    task_type: str
+    model_type: str
+    model_id: Optional[str]
+    reason: str
+    confidence: float
+    estimated_tokens: int
+    capabilities_needed: List[str]
+    provider_recommendation: str
+    use_large_context: bool
+
+
+@router.post("/models/route", response_model=ModelRouteResponse)
+async def get_model_route(request: ModelRouteRequest):
+    """
+    Get intelligent model routing recommendation.
+
+    Analyzes content characteristics (language, complexity, length) and
+    recommends the optimal model configuration for the task.
+
+    Examples:
+    - Chinese content → Qwen/Alibaba (cost-effective)
+    - Code generation → Anthropic/OpenAI
+    - Complex reasoning → Claude
+    - Fast response → Groq
+    """
+    try:
+        from open_notebook.skills.model_router import get_model_recommendation
+
+        result = await get_model_recommendation(
+            content=request.content,
+            require_fast=request.require_fast,
+            require_cheap=request.require_cheap
+        )
+
+        if not result["success"]:
+            raise HTTPException(
+                status_code=500,
+                detail=result.get("error", "Routing failed")
+            )
+
+        rec = result["recommendation"]
+        return ModelRouteResponse(
+            task_type=rec["task_type"],
+            model_type=rec["model_type"],
+            model_id=rec["model_id"],
+            reason=rec["reason"],
+            confidence=rec["confidence"],
+            estimated_tokens=rec["estimated_tokens"],
+            capabilities_needed=rec["capabilities_needed"],
+            provider_recommendation=rec["routing_decision"]["provider_recommendation"],
+            use_large_context=rec["routing_decision"]["use_large_context"],
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting model route: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Error getting model route: {str(e)}"
+        )

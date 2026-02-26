@@ -28,13 +28,25 @@ Based on the user question, the context and the retrieved answers, please formul
 
 # CITING SOURCES
 
-It's very important that your response contains references to the searched documents so the user can follow-up and read more about the topic. The way you do that is by adding the id of the specific document in between brackets like this: [document_id]. The references will be present on all the answers you have been provided.
+It's very important that your response contains references to the searched documents so the user can follow-up and read more about the topic. The way you do that is by adding the id of the specific document in between brackets like this: [document_id] or [cite:source:id:para_N] for paragraph-level precision.
+
+## CITATION FORMATS
+
+**Document-level citation** (when referencing general content):
+- Format: [source:id] or [note:id] or [insight:id]
+- Example: [source:abc123]
+
+**Paragraph-level citation** (when referencing specific text, preferred):
+- Format: [cite:source:id:para_N] where N is paragraph number (0-indexed)
+- Example: [cite:source:abc123:para_2] refers to paragraph 3
+- Use this when citing specific facts, quotes, or claims
 
 ## IMPORTANT
 
 - Do not make up documents or document ids. Only use the ids of the documents that you can see on the answers you received.
 - The ID is composed of the type of document and a random string, such as "source:randomstring", "note:randomstring", or "insight:randomstring". There are various types of documents, including notes, insights, and sources. **Always use the complete ID exactly as it is provided, including its type prefix. Do not add, remove, or modify any part of the ID.**
 - **Use document IDs exactly as they are returned in the answers. Do not add any prefixes or modify them in any way.**
+- For paragraph-level citations, count paragraphs from the beginning of the source content, separated by blank lines.
 
 # YOUR ANSWER
 

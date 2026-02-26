@@ -34,6 +34,7 @@ class SourceProcessingInput(CommandInput):
     notebook_ids: List[str]
     transformations: List[str]
     embed: bool
+    auto_analyze: bool = True  # Enable smart analysis by default
 
 
 class SourceProcessingOutput(CommandOutput):
@@ -108,6 +109,7 @@ async def process_source_command(
                 "apply_transformations": transformations,
                 "embed": input_data.embed,
                 "source_id": input_data.source_id,  # Add the source_id to the state
+                "auto_analyze": input_data.auto_analyze,  # Enable smart analysis
             }
         )
 
