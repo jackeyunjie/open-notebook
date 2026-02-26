@@ -1,0 +1,34 @@
+1
+00:00:00,000 --> 00:00:04,000
+Google的NotebookLM只有两个发言人
+Google's NotebookLM has only two speakers
+
+2
+00:00:04,000 --> 00:00:08,000
+而我们Open Notebook有十大AI技能
+Open Notebook has ten AI Skills
+
+3
+00:00:08,000 --> 00:00:11,000
+智能文档分析、精准引用、知识图谱
+Smart Analysis, Citations, Knowledge Graphs
+
+4
+00:00:11,000 --> 00:00:15,000
+播客规划、深度研究、视频生成
+Podcasts, Research, Video Generation
+
+5
+00:00:15,000 --> 00:00:21,000
+演示文稿、思维导图、会议总结、还有智能模型路由
+Presentations, Mind Maps, Meetings, and Model Routing
+
+6
+00:00:21,000 --> 00:00:27,000
+所有数据都保存在你自己的服务器上，不是谷歌的云端
+All your data stays on YOUR server, not Google's cloud
+
+7
+00:00:27,000 --> 00:00:30,000
+只需一条命令，两分钟即可部署。永久免费
+One command, two minutes to deploy. Free forever
