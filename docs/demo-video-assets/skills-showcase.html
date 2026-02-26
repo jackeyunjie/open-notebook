@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Open Notebook - 10 Skills Showcase</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+
+        .container {
+            width: 1080px;
+            height: 1920px;
+            background: #0a0a0f;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Scene 1: Hook */
+        .scene-hook {
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 60px;
+            animation: fadeIn 1s ease-out;
+        }
+
+        .logo {
+            font-size: 120px;
+            margin-bottom: 40px;
+            animation: pulse 2s infinite;
+        }
+
+        .hook-text {
+            font-size: 72px;
+            font-weight: 800;
+            color: white;
+            text-align: center;
+            line-height: 1.2;
+            margin-bottom: 30px;
+        }
+
+        .hook-text .highlight {
+            background: linear-gradient(90deg, #f093fb 0%, #f5576c 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .hook-subtitle {
+            font-size: 48px;
+            color: #888;
+            text-align: center;
+        }
+
+        /* Skills Grid */
+        .skills-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+            padding: 40px;
+            height: 100%;
+            overflow-y: auto;
+        }
+
+        .skill-card {
+            background: linear-gradient(145deg, #1a1a2e 0%, #16213e 100%);
+            border-radius: 24px;
+            padding: 40px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            border: 2px solid transparent;
+            transition: all 0.3s ease;
+            animation: slideUp 0.6s ease-out;
+        }
+
+        .skill-card:nth-child(1) { animation-delay: 0.1s; }
+        .skill-card:nth-child(2) { animation-delay: 0.2s; }
+        .skill-card:nth-child(3) { animation-delay: 0.3s; }
+        .skill-card:nth-child(4) { animation-delay: 0.4s; }
+        .skill-card:nth-child(5) { animation-delay: 0.5s; }
+        .skill-card:nth-child(6) { animation-delay: 0.6s; }
+        .skill-card:nth-child(7) { animation-delay: 0.7s; }
+        .skill-card:nth-child(8) { animation-delay: 0.8s; }
+        .skill-card:nth-child(9) { animation-delay: 0.9s; }
+        .skill-card:nth-child(10) { animation-delay: 1s; }
+
+        .skill-icon {
+            font-size: 80px;
+            margin-bottom: 20px;
+        }
+
+        .skill-name {
+            font-size: 36px;
+            font-weight: 700;
+            color: white;
+            margin-bottom: 12px;
+        }
+
+        .skill-desc {
+            font-size: 24px;
+            color: #aaa;
+            line-height: 1.4;
+        }
+
+        .skill-badge {
+            margin-top: 16px;
+            padding: 8px 20px;
+            background: linear-gradient(90deg, #f093fb 0%, #f5576c 100%);
+            border-radius: 20px;
+            font-size: 20px;
+            font-weight: 600;
+            color: white;
+        }
+
+        /* Comparison Scene */
+        .scene-compare {
+            height: 100%;
+            padding: 60px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .compare-title {
+            font-size: 64px;
+            font-weight: 800;
+            color: white;
+            text-align: center;
+            margin-bottom: 60px;
+        }
+
+        .compare-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+        }
+
+        .compare-card {
+            background: #1a1a2e;
+            border-radius: 24px;
+            padding: 40px;
+        }
+
+        .compare-card.open-notebook {
+            border: 3px solid #00d26a;
+        }
+
+        .compare-card.notebooklm {
+            border: 3px solid #666;
+        }
+
+        .compare-card h3 {
+            font-size: 40px;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .compare-card.open-notebook h3 {
+            color: #00d26a;
+        }
+
+        .compare-card.notebooklm h3 {
+            color: #888;
+        }
+
+        .feature-list {
+            list-style: none;
+        }
+
+        .feature-list li {
+            font-size: 28px;
+            color: white;
+            padding: 16px 0;
+            border-bottom: 1px solid #333;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .feature-list li:last-child {
+            border-bottom: none;
+        }
+
+        .check { color: #00d26a; }
+        .cross { color: #ff4757; }
+
+        /* Privacy Scene */
+        .scene-privacy {
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 60px;
+            background: linear-gradient(180deg, #0a0a0f 0%, #1a1a3e 100%);
+        }
+
+        .privacy-icon {
+            font-size: 200px;
+            margin-bottom: 40px;
+            animation: pulse 2s infinite;
+        }
+
+        .privacy-title {
+            font-size: 72px;
+            font-weight: 800;
+            color: white;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .privacy-subtitle {
+            font-size: 40px;
+            color: #888;
+            text-align: center;
+            max-width: 800px;
+        }
+
+        /* CTA Scene */
+        .scene-cta {
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 60px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .cta-title {
+            font-size: 80px;
+            font-weight: 800;
+            color: white;
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .cta-command {
+            background: #1a1a2e;
+            padding: 30px 50px;
+            border-radius: 16px;
+            font-family: 'Courier New', monospace;
+            font-size: 32px;
+            color: #00d26a;
+            margin-bottom: 40px;
+        }
+
+        .cta-subtitle {
+            font-size: 36px;
+            color: rgba(255,255,255,0.8);
+            text-align: center;
+        }
+
+        .github-link {
+            margin-top: 60px;
+            padding: 24px 48px;
+            background: white;
+            color: #764ba2;
+            font-size: 36px;
+            font-weight: 700;
+            border-radius: 50px;
+            text-decoration: none;
+        }
+
+        /* Animations */
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(50px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        /* Auto-play scenes */
+        .scene {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.5s ease;
+        }
+
+        .scene.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        /* Progress bar */
+        .progress-bar {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            height: 8px;
+            background: linear-gradient(90deg, #f093fb 0%, #f5576c 100%);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Progress Bar -->
+        <div class="progress-bar" id="progress"></div>
+
+        <!-- Scene 1: Hook -->
+        <div class="scene scene-hook active" id="scene1">
+            <div class="logo">📓</div>
+            <h1 class="hook-text">
+                NotebookLM has<br>
+                <span class="highlight">2 SPEAKERS</span>
+            </h1>
+            <p class="hook-subtitle">We have 10 AI Skills 🚀</p>
+        </div>
+
+        <!-- Scene 2: Skills -->
+        <div class="scene" id="scene2">
+            <div class="skills-grid">
+                <div class="skill-card">
+                    <div class="skill-icon">🔍</div>
+                    <div class="skill-name">Smart Analyzer</div>
+                    <div class="skill-desc">Auto summaries, tags & outlines</div>
+                    <div class="skill-badge">AI Powered</div>
+                </div>
+                <div class="skill-card">
+                    <div class="skill-icon">📚</div>
+                    <div class="skill-name">Citations</div>
+                    <div class="skill-desc">Precise paragraph-level sources</div>
+                    <div class="skill-badge">Academic Grade</div>
+                </div>
+                <div class="skill-card">
+                    <div class="skill-icon">🧠</div>
+                    <div class="skill-name">Knowledge Graph</div>
+                    <div class="skill-desc">Visual AI-powered connections</div>
+                    <div class="skill-badge">Interactive</div>
+                </div>
+                <div class="skill-card">
+                    <div class="skill-icon">🎙️</div>
+                    <div class="skill-name">Podcast Planner</div>
+                    <div class="skill-desc">1-4 speakers, 7 formats</div>
+                    <div class="skill-badge">Flexible</div>
+                </div>
+                <div class="skill-card">
+                    <div class="skill-icon">🔬</div>
+                    <div class="skill-name">Research Assistant</div>
+                    <div class="skill-desc">Multi-round deep research</div>
+                    <div class="skill-badge">Deep Dive</div>
+                </div>
+                <div class="skill-card">
+                    <div class="skill-icon">🎬</div>
+                    <div class="skill-name">Video Generator</div>
+                    <div class="skill-desc">Scene-by-scene scripts</div>
+                    <div class="skill-badge">Creative</div>
+                </div>
+                <div class="skill-card">
+                    <div class="skill-icon">📊</div>
+                    <div class="skill-name">PPT Generator</div>
+                    <div class="skill-desc">7 types, 8 slide layouts</div>
+                    <div class="skill-badge">Professional</div>
+                </div>
+                <div class="skill-card">
+                    <div class="skill-icon">🗺️</div>
+                    <div class="skill-name">MindMap Generator</div>
+                    <div class="skill-desc">5 layouts, D3.js viz</div>
+                    <div class="skill-badge">Visual</div>
+                </div>
+                <div class="skill-card">
+                    <div class="skill-icon">📋</div>
+                    <div class="skill-name">Meeting Summarizer</div>
+                    <div class="skill-desc">Action items & decisions</div>
+                    <div class="skill-badge">Productivity</div>
+                </div>
+                <div class="skill-card">
+                    <div class="skill-icon">🎯</div>
+                    <div class="skill-name">Model Router</div>
+                    <div class="skill-desc">Claude/Qwen/Groq auto-select</div>
+                    <div class="skill-badge">Smart</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Scene 3: Comparison -->
+        <div class="scene scene-compare" id="scene3">
+            <h2 class="compare-title">Why Open Notebook?</h2>
+            <div class="compare-grid">
+                <div class="compare-card open-notebook">
+                    <h3>✅ Open Notebook</h3>
+                    <ul class="feature-list">
+                        <li><span class="check">✓</span> Self-hosted (your data)</li>
+                        <li><span class="check">✓</span> 16+ AI providers</li>
+                        <li><span class="check">✓</span> 10 AI Skills</li>
+                        <li><span class="check">✓</span> Video generation</li>
+                        <li><span class="check">✓</span> Presentations</li>
+                        <li><span class="check">✓</span> Mind maps</li>
+                        <li><span class="check">✓</span> Full REST API</li>
+                    </ul>
+                </div>
+                <div class="compare-card notebooklm">
+                    <h3>❌ NotebookLM</h3>
+                    <ul class="feature-list">
+                        <li><span class="cross">✗</span> Google cloud only</li>
+                        <li><span class="cross">✗</span> Google models only</li>
+                        <li><span class="cross">✗</span> Basic Q&A only</li>
+                        <li><span class="cross">✗</span> No video support</li>
+                        <li><span class="cross">✗</span> No presentations</li>
+                        <li><span class="cross">✗</span> No mind maps</li>
+                        <li><span class="cross">✗</span> No API access</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Scene 4: Privacy -->
+        <div class="scene scene-privacy" id="scene4">
+            <div class="privacy-icon">🔒</div>
+            <h2 class="privacy-title">Your Data.<br>Your Control.</h2>
+            <p class="privacy-subtitle">Everything stays on YOUR server. Not Google's cloud.</p>
+        </div>
+
+        <!-- Scene 5: CTA -->
+        <div class="scene scene-cta" id="scene5">
+            <h2 class="cta-title">Ready to try?</h2>
+            <div class="cta-command">curl -fsSL ... | bash</div>
+            <p class="cta-subtitle">One command. 2 minutes. Free forever.</p>
+            <a href="https://github.com/lfnovo/open-notebook" class="github-link">
+                ⭐ Star on GitHub
+            </a>
+        </div>
+    </div>
+
+    <script>
+        // Auto-play scenes
+        const scenes = ['scene1', 'scene2', 'scene3', 'scene4', 'scene5'];
+        const durations = [3000, 8000, 5000, 4000, 5000]; // milliseconds
+        let currentScene = 0;
+        let totalDuration = durations.reduce((a, b) => a + b, 0);
+        let elapsed = 0;
+
+        function showScene(index) {
+            scenes.forEach((id, i) => {
+                const el = document.getElementById(id);
+                if (i === index) {
+                    el.classList.add('active');
+                } else {
+                    el.classList.remove('active');
+                }
+            });
+
+            // Update progress bar
+            const progress = (elapsed / totalDuration) * 100;
+            document.getElementById('progress').style.width = progress + '%';
+        }
+
+        function nextScene() {
+            if (currentScene < scenes.length - 1) {
+                elapsed += durations[currentScene];
+                currentScene++;
+                showScene(currentScene);
+                setTimeout(nextScene, durations[currentScene]);
+            } else {
+                // Loop back to start
+                setTimeout(() => {
+                    currentScene = 0;
+                    elapsed = 0;
+                    showScene(0);
+                    setTimeout(nextScene, durations[0]);
+                }, durations[currentScene]);
+            }
+        }
+
+        // Start auto-play
+        setTimeout(nextScene, durations[0]);
+
+        // Keyboard navigation
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowRight') {
+                if (currentScene < scenes.length - 1) {
+                    currentScene++;
+                    showScene(currentScene);
+                }
+            } else if (e.key === 'ArrowLeft') {
+                if (currentScene > 0) {
+                    currentScene--;
+                    showScene(currentScene);
+                }
+            }
+        });
+    </script>
+</body>
+</html>
