@@ -239,6 +239,16 @@ from open_notebook.skills.email_service import EmailService
 from open_notebook.skills.daily_briefing_scheduler import (
     DailyBriefingScheduler,
 )
+from open_notebook.skills.content_quality_assessor import (
+    ContentQualityAssessorSkill,
+    ContentType,
+    QualityLevel,
+    QualityAssessment,
+    QualityIssue,
+    assess_content_quality,
+    rewrite_with_quality_guidance,
+    get_differentiation_keywords,
+)
 # Note: xiaohongshu_researcher is loaded lazily to avoid circular dependency
 # from open_notebook.skills.xiaohongshu_researcher import XiaohongshuResearcherSkill, research_xiaohongshu
 
@@ -461,6 +471,15 @@ __all__ = [
     "ContentItem",
     "EmailService",
     "DailyBriefingScheduler",
+    # Content Quality Assessor (P1 Layer)
+    "ContentQualityAssessorSkill",
+    "ContentType",
+    "QualityLevel",
+    "QualityAssessment",
+    "QualityIssue",
+    "assess_content_quality",
+    "rewrite_with_quality_guidance",
+    "get_differentiation_keywords",
     # Xiaohongshu researcher skill (lazy loaded)
     # "XiaohongshuResearcherSkill",
     # "research_xiaohongshu",

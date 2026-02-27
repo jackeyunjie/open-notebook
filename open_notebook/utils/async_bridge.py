@@ -10,6 +10,7 @@ functions like model provisioning.
 
 import asyncio
 import concurrent.futures
+import os
 from typing import Any, Callable, Coroutine, TypeVar
 
 from loguru import logger
@@ -37,7 +38,7 @@ def get_bridge_executor() -> concurrent.futures.ThreadPoolExecutor:
         # Use min(32, os.cpu_count() + 4) as default, matching ThreadPoolExecutor default
         _bridge_executor = concurrent.futures.ThreadPoolExecutor(
             thread_name_prefix="async_bridge",
-            max_workers=min(32, (asyncio.os.cpu_count() or 1) + 4),
+            max_workers=min(32, (os.cpu_count() or 1) + 4),
         )
         logger.debug("Initialized global async bridge thread pool")
     return _bridge_executor

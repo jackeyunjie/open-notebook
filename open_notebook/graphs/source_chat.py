@@ -120,7 +120,7 @@ def call_model_with_source_context(
     # Enhance citations with precise references
     try:
         if source and source.id:
-            enhanced = await await_bridge(
+            enhanced = await_bridge(
                 lambda: enhance_response_citations(
                     response_text=cleaned_content,
                     source_ids=[str(source.id)],
