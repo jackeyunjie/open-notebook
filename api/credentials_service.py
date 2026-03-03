@@ -41,6 +41,10 @@ PROVIDER_ENV_CONFIG: Dict[str, dict] = {
     "voyage": {"required": ["VOYAGE_API_KEY"]},
     "elevenlabs": {"required": ["ELEVENLABS_API_KEY"]},
     "ollama": {"required": ["OLLAMA_API_BASE"]},
+    # 国内AI提供商
+    "moonshot": {"required": ["MOONSHOT_API_KEY"]},  # 月之暗面 (Kimi)
+    "qwen": {"required": ["DASHSCOPE_API_KEY"]},  # 阿里通义千问
+    "zhipu": {"required": ["ZHIPU_API_KEY"]},  # 智谱AI (GLM)
     "vertex": {
         "required": ["VERTEX_PROJECT", "VERTEX_LOCATION"],
         "optional": ["GOOGLE_APPLICATION_CREDENTIALS"],
@@ -71,6 +75,10 @@ PROVIDER_MODALITIES: Dict[str, List[str]] = {
     "voyage": ["embedding"],
     "elevenlabs": ["text_to_speech"],
     "ollama": ["language", "embedding"],
+    # 国内AI提供商
+    "moonshot": ["language"],  # 月之暗面 (Kimi) - 长文本模型
+    "qwen": ["language", "embedding"],  # 阿里通义千问
+    "zhipu": ["language", "embedding"],  # 智谱AI (GLM)
     "vertex": ["language", "embedding"],
     "azure": ["language", "embedding", "speech_to_text", "text_to_speech"],
     "openai_compatible": ["language", "embedding", "speech_to_text", "text_to_speech"],

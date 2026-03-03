@@ -173,6 +173,121 @@ async def _test_openai_compatible_connection(base_url: str, api_key: Optional[st
     except Exception as e:
         return False, f"Connection error: {str(e)[:100]}"
 
+
+async def _test_moonshot_connection(api_key: Optional[str] = None) -> Tuple[bool, str]:
+    """Test Moonshot (Kimi) API connectivity."""
+    base_url = "https://api.moonshot.cn/v1"
+    test_key = api_key or os.environ.get("MOONSHOT_API_KEY")
+
+    if not test_key:
+        return False, "No Moonshot API key configured"
+
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.get(
+                f"{base_url}/models",
+                headers={"Authorization": f"Bearer {test_key}"}
+            )
+
+            if response.status_code == 200:
+                data = response.json()
+                models = data.get("data", [])
+                model_count = len(models)
+
+                # 过滤出主要模型
+                main_models = [m.get("id", "") for m in models if "moonshot" in m.get("id", "")]
+                if main_models:
+                    return True, f"Connected. Available models: {', '.join(main_models[:3])}"
+                return True, f"Connected. {model_count} models available"
+            elif response.status_code == 401:
+                return False, "Invalid Moonshot API key"
+            else:
+                return False, f"Moonshot API returned status {response.status_code}"
+
+    except httpx.ConnectError:
+        return False, "Cannot connect to Moonshot API"
+    except httpx.TimeoutException:
+        return False, "Connection to Moonshot timed out"
+    except Exception as e:
+        return False, f"Moonshot connection error: {str(e)[:100]}"
+
+
+async def _test_qwen_connection(api_key: Optional[str] = None) -> Tuple[bool, str]:
+    """Test Qwen (DashScope) API connectivity."""
+    base_url = "https://dashscope.aliyuncs.com/compatible-mode/v1"
+    test_key = api_key or os.environ.get("DASHSCOPE_API_KEY")
+
+    if not test_key:
+        return False, "No DashScope API key configured"
+
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.get(
+                f"{base_url}/models",
+                headers={"Authorization": f"Bearer {test_key}"}
+            )
+
+            if response.status_code == 200:
+                data = response.json()
+                models = data.get("data", [])
+
+                # 统计Qwen模型
+                qwen_models = [m.get("id", "") for m in models if "qwen" in m.get("id", "").lower()]
+                if qwen_models:
+                    return True, f"Connected. Qwen models: {len(qwen_models)} available"
+                return True, f"Connected. {len(models)} total models available"
+            elif response.status_code == 401:
+                return False, "Invalid DashScope API key"
+            else:
+                return False, f"DashScope API returned status {response.status_code}"
+
+    except httpx.ConnectError:
+        return False, "Cannot connect to DashScope API"
+    except httpx.TimeoutException:
+        return False, "Connection to DashScope timed out"
+    except Exception as e:
+        return False, f"DashScope connection error: {str(e)[:100]}"
+
+
+async def _test_zhipu_connection(api_key: Optional[str] = None) -> Tuple[bool, str]:
+    """Test Zhipu AI (GLM) API connectivity."""
+    base_url = "https://open.bigmodel.cn/api/paas/v4"
+    test_key = api_key or os.environ.get("ZHIPU_API_KEY")
+
+    if not test_key:
+        return False, "No Zhipu API key configured"
+
+    try:
+        # Zhipu API 需要通过模型列表或其他端点验证
+        # 这里使用简单的模型调用验证
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.post(
+                f"{base_url}/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {test_key}",
+                    "Content-Type": "application/json"
+                },
+                json={
+                    "model": "glm-4-flash",
+                    "messages": [{"role": "user", "content": "Hi"}],
+                    "max_tokens": 5
+                }
+            )
+
+            if response.status_code == 200:
+                return True, "Connected. Zhipu API key valid"
+            elif response.status_code == 401:
+                return False, "Invalid Zhipu API key"
+            else:
+                return False, f"Zhipu API returned status {response.status_code}"
+
+    except httpx.ConnectError:
+        return False, "Cannot connect to Zhipu API"
+    except httpx.TimeoutException:
+        return False, "Connection to Zhipu timed out"
+    except Exception as e:
+        return False, f"Zhipu connection error: {str(e)[:100]}"
+
 async def test_provider_connection(
     provider: str, model_type: str = "language", config_id: Optional[str] = None
 ) -> Tuple[bool, str]:
@@ -228,6 +343,16 @@ async def test_provider_connection(
 
         if normalized_provider == "azure":
             return await _test_azure_connection(endpoint, api_key, api_version)
+
+        # 国内AI提供商特殊处理
+        if normalized_provider == "moonshot":
+            return await _test_moonshot_connection(api_key)
+
+        if normalized_provider == "qwen":
+            return await _test_qwen_connection(api_key)
+
+        if normalized_provider == "zhipu":
+            return await _test_zhipu_connection(api_key)
 
         # Get test model for provider
         if normalized_provider not in TEST_MODELS:
