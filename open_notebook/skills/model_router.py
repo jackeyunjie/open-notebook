@@ -119,8 +119,13 @@ class MultiModelRouter(Skill):
 
     # Provider capability mapping
     PROVIDER_CAPABILITIES = {
-        "qwen": [ModelCapability.CHINESE, ModelCapability.CHEAP, ModelCapability.LONG_CONTEXT],
-        "alibaba": [ModelCapability.CHINESE, ModelCapability.CHEAP, ModelCapability.LONG_CONTEXT],
+        # 国内AI提供商
+        "qwen": [ModelCapability.CHINESE, ModelCapability.CHEAP, ModelCapability.LONG_CONTEXT, ModelCapability.CODE],
+        "alibaba": [ModelCapability.CHINESE, ModelCapability.CHEAP, ModelCapability.LONG_CONTEXT, ModelCapability.CODE],
+        "moonshot": [ModelCapability.CHINESE, ModelCapability.LONG_CONTEXT, ModelCapability.REASONING],
+        "zhipu": [ModelCapability.CHINESE, ModelCapability.CHEAP, ModelCapability.REASONING],
+        "deepseek": [ModelCapability.REASONING, ModelCapability.CODE, ModelCapability.CHEAP],
+        # 国际AI提供商
         "anthropic": [ModelCapability.REASONING, ModelCapability.CODE, ModelCapability.CREATIVE, ModelCapability.LONG_CONTEXT],
         "openai": [ModelCapability.REASONING, ModelCapability.CODE, ModelCapability.CREATIVE],
         "groq": [ModelCapability.FAST, ModelCapability.CHEAP],
@@ -462,14 +467,14 @@ class MultiModelRouter(Skill):
     def _get_provider_recommendation(self, task_type: TaskType) -> str:
         """Get human-readable provider recommendation."""
         recommendations = {
-            TaskType.CHINESE_CONTENT: "Qwen/Alibaba (best Chinese, cost-effective)",
-            TaskType.CODE_GENERATION: "Anthropic Claude or OpenAI (strong coding)",
-            TaskType.COMPLEX_REASONING: "Anthropic Claude (best reasoning)",
-            TaskType.CREATIVE_WRITING: "Anthropic Claude or OpenAI",
-            TaskType.SUMMARIZATION: "Qwen/Alibaba or Groq (fast, cheap)",
-            TaskType.ANALYSIS: "Anthropic Claude (best analysis)",
-            TaskType.FAST_RESPONSE: "Groq (lowest latency)",
-            TaskType.GENERAL: "System default or OpenAI",
+            TaskType.CHINESE_CONTENT: "Qwen/Alibaba (最佳中文理解，性价比高) | Moonshot (长文本)",
+            TaskType.CODE_GENERATION: "Qwen-Coder (中文代码) | DeepSeek (推理强) | Claude (国际)",
+            TaskType.COMPLEX_REASONING: "DeepSeek (推理强，便宜) | Claude (国际最强)",
+            TaskType.CREATIVE_WRITING: "Claude (创意) | Qwen (中文创意)",
+            TaskType.SUMMARIZATION: "Qwen (快+便宜) | Moonshot (长文档)",
+            TaskType.ANALYSIS: "DeepSeek (深度分析) | Qwen (中文分析) | Claude (国际)",
+            TaskType.FAST_RESPONSE: "Groq (极速) | Qwen-Turbo (便宜)",
+            TaskType.GENERAL: "Qwen3.5-Plus (平衡之选) | 系统默认",
         }
         return recommendations.get(task_type, "System default")
 
