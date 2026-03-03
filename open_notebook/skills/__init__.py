@@ -36,6 +36,10 @@ from open_notebook.skills.auto_podcast_planner import (
     plan_podcast,
     suggest_podcast_formats,
 )
+from open_notebook.skills.podcast_generator import (
+    PodcastGeneratorSkill,
+    generate_podcast,
+)
 from open_notebook.skills.research_assistant import (
     ResearchAssistant,
     ResearchDepth,
@@ -288,6 +292,9 @@ __all__ = [
     "AutoPodcastPlanner",
     "plan_podcast",
     "suggest_podcast_formats",
+    # Podcast Generator (Claude Skill)
+    "PodcastGeneratorSkill",
+    "generate_podcast",
     # Research Assistant
     "ResearchAssistant",
     "ResearchDepth",
